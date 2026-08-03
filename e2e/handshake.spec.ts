@@ -19,12 +19,6 @@ async function open(page: Page) {
   await page.waitForFunction(() => Boolean(document.querySelector('#root')?.firstChild));
 }
 
-const HOST_SIDE = `
-  const { encodeHandshake, fromSdp } = await import('/party-games/src/net/sdp-codec.ts');
-  const { gather, newPeerConnection, randomNonce, CHANNEL_LABEL } =
-    await import('/party-games/src/net/webrtc.ts');
-`;
-
 test.describe('QR-signaled handshake', () => {
   test('an offer and answer under 250 characters open a working data channel', async ({
     browser,
@@ -53,7 +47,7 @@ test.describe('QR-signaled handshake', () => {
       const w = globalThis as unknown as { __host: { pc: RTCPeerConnection; dc: RTCDataChannel } };
       w.__host = { pc, dc };
 
-      return encodeHandshake(fromSdp(pc.localDescription.sdp, 'offer', randomNonce()));
+      return encodeHandshake(fromSdp(pc.localDescription!.sdp, 'offer', randomNonce()));
     });
 
     expect(offerText).toMatch(/^[0-9A-Z $%*+\-./:]+$/);

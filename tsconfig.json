@@ -19,7 +19,14 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "allowImportingTsExtensions": true
+    "allowImportingTsExtensions": true,
+
+    // e2e specs import source modules by the URL the dev server serves them
+    // at, so that they drive the real code rather than a copy. This is what
+    // lets the typechecker follow them.
+    "paths": {
+      "/party-games/src/*": ["./src/*"]
+    }
   },
   "include": ["src", "e2e", "vite.config.ts", "playwright.config.ts"]
 }
