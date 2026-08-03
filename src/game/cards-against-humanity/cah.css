@@ -1,0 +1,178 @@
+/*
+ * Cards Against Humanity — the game's own surface.
+ *
+ * The shell stays as it is: night ground, hairline rule, small-caps label. What
+ * this game adds is one contradiction, on purpose. Everything else in the app
+ * is uppercase and wide, because it is signage; these cards are printed as bold
+ * grotesque *sentences*, and a joke set in all caps loses its timing. So the
+ * prompt and the cards run sentence case at normal width, and the shell's
+ * uppercase is kept for the furniture around them.
+ *
+ * Colour does one job. The cards stay black and white the way they are printed,
+ * and --game-hue is only ever the light in the room: the Czar, the one button,
+ * and the words you supplied.
+ */
+
+.cah {
+  --paper: #f4f3f0;
+  --card-ink: #12100f;
+
+  /* A hand of ten is taller than a phone. Capping the surface is what makes
+     the hand scroll inside itself instead of pushing the roster — and the
+     bottom edge the whole layout is built around — off the screen. */
+  max-height: 100dvh;
+}
+
+/* --- The sentence, which is the whole point of the game --- */
+
+.cah-sentence {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+/* Holds the sentence in the middle of the free space instead of leaving a
+   hole under it. Used where the sentence is the only thing on screen. */
+.cah-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
+}
+
+.cah-prompt {
+  /* Sentence case, normal width — see the note at the top of this file. */
+  font-size: clamp(1.375rem, 6.2vw, 1.875rem);
+  font-weight: 700;
+  font-stretch: var(--normal);
+  letter-spacing: -0.005em;
+  line-height: 1.2;
+  text-transform: none;
+  text-wrap: pretty;
+  /* Two prompts are set as verse and carry their own line breaks. */
+  white-space: pre-line;
+}
+
+/* A leftover answer to a prompt with no gap — the spoken reply. */
+.cah-said {
+  color: var(--game-hue);
+}
+
+.cah-blank {
+  display: inline;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  border-bottom: 2px solid var(--dim);
+  /* No padding: these gaps sit directly against the prompt's own punctuation,
+     and a fraction of an em is enough to strand a colon out on its own. */
+  padding-inline: 0;
+}
+
+.cah-blank:empty::before {
+  content: '\2003\2003\2003\2003';
+}
+
+.cah-filled {
+  border-bottom-color: var(--game-hue);
+  color: var(--game-hue);
+}
+
+/* The one animation this game owns: the card landing in the gap. */
+@media (prefers-reduced-motion: no-preference) {
+  .cah-filled {
+    animation: cah-land 220ms cubic-bezier(0.16, 0.9, 0.3, 1) both;
+  }
+}
+
+@keyframes cah-land {
+  from {
+    opacity: 0;
+    transform: translateY(-0.35em);
+  }
+}
+
+/* --- The hand: white cardstock, quiet, secondary --- */
+
+.cah-hand {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  list-style: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Scrolls under the Play button rather than pushing it off the screen. */
+  min-height: 0;
+}
+
+.cah-card {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--s3) var(--s4);
+  border-radius: 3px;
+  background: var(--paper);
+  color: var(--card-ink);
+  font-size: 1rem;
+  font-weight: 600;
+  font-stretch: var(--normal);
+  line-height: 1.25;
+  text-align: left;
+  text-transform: none;
+  text-wrap: pretty;
+}
+
+.cah-played {
+  /* Played, not gone — it is showing in the sentence above instead. */
+  opacity: 0.34;
+  padding-right: var(--s7);
+}
+
+.cah-order {
+  position: absolute;
+  top: 50%;
+  right: var(--s3);
+  translate: 0 -50%;
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--card-ink);
+  color: var(--paper);
+  /* The printed PICK badge is the one piece of the card's own furniture worth
+     keeping, and it is the only thing here set in the utility face. */
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* --- Furniture --- */
+
+.cah-czar {
+  color: var(--game-hue);
+}
+
+/* Who has laid a card down, on the roster, without saying which. */
+.cah-in {
+  display: inline-block;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-left: 0.35em;
+  border-radius: 50%;
+  background: var(--game-hue);
+  vertical-align: 0.15em;
+}
+
+.cah-flip {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s3);
+}
+
+.cah-credit {
+  font-size: 0.6875rem;
+  color: var(--gone);
+  text-align: center;
+}

@@ -347,7 +347,12 @@ is placed where a thumb rests.
 
 ---
 
-## 8. Liar's dice
+## 8. The games
+
+Two of them now. §8.1 is the one the framework was designed around; §8.2 is the one that
+tested whether the framework was actually right.
+
+### 8.1 Liar's dice
 
 The app is a **secret dice dealer and a scorekeeper. It is not a rules engine.** Bidding
 happens out loud, across the table, the way it does with real dice under real cups. The
@@ -364,7 +369,7 @@ app never asks anyone to type a bid, tracks no turn order, and never tallies a c
 Ones are wild — but that is a rule the humans apply while counting, not something the
 software computes.
 
-### Round loop
+#### Round loop
 
 Three phases.
 
@@ -419,7 +424,7 @@ Then back to ROLLING. A player at zero dice is **out** but stays visible in the 
 such. The last player with dice wins, and `result()` hands placements to the shell's
 scoreboard.
 
-### State
+#### State
 
 ```ts
 type LiarsDiceState = {
@@ -441,6 +446,80 @@ only from `caller`.
 
 **Config flags** are reserved but off: exact / "spot on" calls, and Palifico rounds. They
 would be additive — neither requires the app to start tracking bids.
+
+### 8.2 Cards Against Humanity
+
+The second game, and the one that actually tested §5's claim that a new game is a file and
+a line in the registry. It was: the shell needed no change at all.
+
+It is a harder test of the projection than dice are. A hand of ten is the largest secret in
+the app, and the game has a second, subtler secret on top of it — **who wrote which
+answer**. The Card Czar has to be able to judge the joke without being told whose it is.
+
+| Happens in the app | Happens at the table |
+| --- | --- |
+| Dealing ten secret white cards | Reading the answers out loud, badly |
+| Showing you your own hand | Deciding whether that one was funny |
+| Shuffling the answers before the Czar sees them | Arguing about the Czar's taste |
+| Keeping score in black cards | Everything else |
+
+**The deck** is the publisher's free Main Deck, 100 black and 500 white, bundled. It is
+CC BY-NC-SA 2.0 while the code is BSD-3-Clause, so it lives alone in one file with its own
+`NOTICE.md` — see the header of `src/game/cards-against-humanity/deck.ts`.
+
+#### Round loop
+
+Three phases, and only one of them has a button that starts it.
+
+**PICKING.** Everyone but the Czar plays `pick` cards face down. Composing the play is
+*local state in the component*; only the confirmed `PLAY` is dispatched, which is what
+"face down" means here and is why there is no `UNPLAY` on the wire. The last card arriving
+flips the phase on its own — nobody presses anything.
+
+**READING.** The Czar's device gets the submissions, shuffled, as bare arrays of text with
+no `PlayerId` anywhere in them. Every other device gets *"Ann is reading"* and nothing else.
+That is deliberate: the reading is a performance at the table, and putting the text on ten
+screens would steal it. It also means the losing answers stay private forever, which is a
+small departure from the cardboard and a good one.
+
+**SCORED.** The winning answer and its author go public — the Czar just read it out, so
+there is nothing left to protect. `NEXT_ROUND` rotates the chair and refills every hand.
+
+#### State
+
+Everything is a **deck index, never a card's text**. The deck ships on every device, so the
+host keeps small integers in state, in its IndexedDB snapshots, and on the wire; `view`
+resolves them to prose at the last moment. A hand of ten is ten numbers rather than a
+paragraph on every sync.
+
+```ts
+type CahState = {
+  phase: 'PICKING' | 'READING' | 'SCORED';
+  seats: { id; name; hand: number[]; wins: number }[];
+  czar: number;                  // index into seats, rotates one per round
+  black: number;
+  blackPile / blackDiscard / whitePile / whiteDiscard: number[];
+  submissions: { by: PlayerId; cards: number[] }[];
+  order: number[];               // rng-shuffled; the Czar judges a position in this
+  winner: PlayerId | null;
+};
+```
+
+`JUDGE` names a **position in `order`**, not a player, so authorship never needs to reach
+the Czar's device in the first place.
+
+**Two departures from the printed rules**, both because this is a party and not a rules
+engine. `NEXT_ROUND` is legal from any seat rather than only the Czar, and `FORCE_READ`
+lets the Czar start reading with only some of the cards in (at least two). A round that
+deadlocks because one person's phone went to sleep is worse than a round played without
+them.
+
+**The surface.** The subject of this game is the sentence, not the cardboard, so the
+prompt's blanks fill in place as you tap. The cards stay black and white the way they are
+printed, and `--game-hue` — blacklight violet — is only ever the light in the room: the
+Czar, the one button, and the words *you* supplied. It runs sentence case at normal width,
+deliberately against the shell's uppercase habit (§7), because these cards are printed as
+bold grotesque sentences and shouting them costs the joke its timing.
 
 ---
 

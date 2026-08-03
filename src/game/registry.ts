@@ -1,3 +1,4 @@
+import { cardsAgainstHumanity } from './cards-against-humanity/index.ts';
 import { liarsDice } from './liars-dice/index.ts';
 import type { AnyGame } from './types.ts';
 
@@ -7,7 +8,7 @@ import type { AnyGame } from './types.ts';
  * The shell reads nothing from a game but this list and the GameDefinition
  * interface, so adding a second one is adding a file and a line here.
  */
-export const GAMES: AnyGame[] = [liarsDice];
+export const GAMES: AnyGame[] = [liarsDice, cardsAgainstHumanity];
 
 export function findGame(id: string | null): AnyGame | null {
   return GAMES.find((g) => g.id === id) ?? null;

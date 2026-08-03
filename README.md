@@ -37,13 +37,26 @@ npm run dev          # http://localhost:5173/party-games/
 `?transport=broadcast` swaps in a BroadcastChannel transport and skips the handshake, and
 `?as=Name` gives each tab its own identity:
 
+Both are real query parameters, so they go **before** the `#`, not inside it — the app
+reads them from `location.search`:
+
 ```
-#/host/liars-dice?transport=broadcast&as=Host
-#/join?transport=broadcast&as=Ann
-#/join?transport=broadcast&as=Bo
+http://localhost:5173/party-games/?transport=broadcast&as=Host#/host/liars-dice
+http://localhost:5173/party-games/?transport=broadcast&as=Ann#/join
+http://localhost:5173/party-games/?transport=broadcast&as=Bo#/join
 ```
 
-Open those in three tabs of one window and you have a game.
+Open those in three tabs of one window and you have a game. BroadcastChannel only reaches
+tabs in the same browser profile, so they have to be ordinary tabs — not separate windows
+in different profiles, and not a private window alongside a normal one.
+
+Cards Against Humanity needs three players, so it needs the host plus two more:
+
+```
+http://localhost:5173/party-games/?transport=broadcast&as=Host#/host/cards-against-humanity
+http://localhost:5173/party-games/?transport=broadcast&as=Ann#/join
+http://localhost:5173/party-games/?transport=broadcast&as=Bo#/join
+```
 
 ## Checks
 
@@ -80,6 +93,24 @@ information and everyone at the table seeing it. The host computes one view per 
 sends each only to its owner. If your game has secrets, copy the secrecy test in
 `src/game/liars-dice/liars-dice.test.ts` — it walks every reachable state and asserts no
 player's private data appears in anyone else's projection.
+
+If your game needs content — a deck, a list of prompts — bundle it as a module under your
+game's directory and hand out **indices**, not text. The app has to work with no network at
+all, and keeping state, snapshots and the wire down to integers is what stops a hand of ten
+cards from becoming a paragraph on every sync. `src/game/cards-against-humanity/deck.ts` is
+the worked example.
+
+## Content and licensing
+
+The code is BSD-3-Clause. The Cards Against Humanity deck is **not** — it is CC BY-NC-SA
+2.0, the licence its publisher gives it away under, and it keeps that licence here. It sits
+alone in `src/game/cards-against-humanity/deck.ts` with a
+[NOTICE.md](src/game/cards-against-humanity/NOTICE.md) beside it precisely so the two never
+get tangled. This app is free, sells nothing and carries no advertising, which is what the
+noncommercial clause asks for.
+
+That deck is also, by design, extremely offensive. It is the game. Nothing in it reflects
+the views of anyone who worked on this.
 
 ## Deploying
 

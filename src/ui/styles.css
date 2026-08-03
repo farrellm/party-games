@@ -138,7 +138,24 @@ button {
   background: var(--rule);
 }
 
-.btn[disabled] {
+/*
+ * Disabled has to beat every variant, and beat it on specificity rather than
+ * on source order.
+ *
+ * This rule used to be `.btn[disabled] { color }` and it was wrong twice. It
+ * set only the colour, so any variant carrying a background — `.primary`,
+ * `.liar` — kept it and rendered lit. And it tied on specificity with those
+ * variants, which are written further down the file, so it lost the colour
+ * too. The result was an unpressable button that looked entirely pressable.
+ *
+ * Hence the doubled selector: it outranks any `.btn.<variant>` written later,
+ * wherever it lands, so a new variant cannot quietly reintroduce this. The
+ * whole inert appearance is set here, not just one property of it.
+ */
+.btn[disabled][disabled],
+.btn.disabled.disabled {
+  background: var(--slate);
+  border-color: var(--rule);
   color: var(--gone);
   cursor: not-allowed;
 }
