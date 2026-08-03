@@ -171,15 +171,6 @@
   gap: var(--s3);
 }
 
-/* The shell's .btn.primary lands after .btn[disabled] in the cascade and wins
-   on equal specificity, so an unfinished play would otherwise render as a
-   fully lit, entirely unpressable button. */
-.cah .btn.primary[disabled] {
-  background: var(--slate);
-  border-color: var(--rule);
-  color: var(--gone);
-}
-
 .cah-credit {
   font-size: 0.6875rem;
   color: var(--gone);
