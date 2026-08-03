@@ -1,0 +1,203 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100dvh;
+  background: var(--night);
+  color: var(--chalk);
+  font-family: var(--face);
+  font-size: var(--t-body);
+  font-stretch: var(--normal);
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+
+  /* Nothing in this app scrolls sideways, and a party game that rubber-bands
+     under a thumb feels broken. */
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- Structure: a hairline rule and a small-caps label, and nothing else. --- */
+
+.rule {
+  border: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.label {
+  font-size: var(--t-label);
+  font-weight: 600;
+  font-stretch: var(--wide);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.shout {
+  font-size: var(--t-shout);
+  font-weight: 800;
+  font-stretch: var(--wide);
+  letter-spacing: 0.01em;
+  line-height: 0.92;
+  text-transform: uppercase;
+}
+
+.loud {
+  font-size: var(--t-loud);
+  font-weight: 700;
+  font-stretch: var(--wide);
+  letter-spacing: 0.02em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.dim {
+  color: var(--dim);
+}
+
+.code {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  color: var(--dim);
+  word-break: break-all;
+  user-select: all;
+}
+
+/* --- Screens --- */
+
+.screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
+  padding: calc(var(--safe-t) + var(--s5)) var(--s5) calc(var(--safe-b) + var(--s5));
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.grow {
+  flex: 1;
+}
+
+/* --- Controls --- */
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+:where(button, input, a, [tabindex]):focus-visible {
+  outline: 2px solid var(--chalk);
+  outline-offset: 3px;
+}
+
+.btn {
+  min-height: var(--tap);
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--rule);
+  background: var(--slate);
+  color: var(--chalk);
+  font-stretch: var(--wide);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.btn:active {
+  background: var(--rule);
+}
+
+.btn[disabled] {
+  color: var(--gone);
+  cursor: not-allowed;
+}
+
+.field {
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--s2) 0;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  background: none;
+  color: var(--chalk);
+  font-family: var(--face);
+  font-size: var(--t-loud);
+  font-stretch: var(--wide);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.field::placeholder {
+  color: var(--gone);
+  text-transform: none;
+  font-weight: 400;
+  font-stretch: var(--normal);
+}
+
+.field:focus {
+  outline: none;
+  border-bottom-color: var(--chalk);
+}
+
+.note {
+  color: var(--dim);
+  font-size: 0.875rem;
+}
+
+.alarm {
+  color: var(--warn);
+  font-size: 0.875rem;
+}
+
+/* --- The deal: a spent code leaves, the next one drops in (see tokens.css) --- */
+
+@keyframes deal-out {
+  to {
+    transform: translate(-14%, -6%) rotate(-7deg);
+    opacity: 0;
+  }
+}
+
+@keyframes deal-in {
+  from {
+    transform: translateY(9%) scale(0.96);
+    opacity: 0;
+  }
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}

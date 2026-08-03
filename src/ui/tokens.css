@@ -1,0 +1,76 @@
+/*
+ * Table & Light
+ *
+ * The shell is fixed and quiet; the game surface is variable and lit. Every
+ * screen is built from one structural device — a hairline rule and a small-caps
+ * label — so that whatever a game puts on screen is the only luminous object.
+ *
+ * Dark is functional, not moody: a bright phone at a dark table glows sideways
+ * to the people beside you, and this whole app exists to hold hidden
+ * information.
+ */
+
+@import '@fontsource-variable/archivo/wdth.css';
+
+:root {
+  /* Shell — owned by the app, never by a game. */
+  --night: #0d1220;
+  --slate: #161d2a;
+  --chalk: #e6e8ee;
+  --rule: #2a3546;
+  --dim: #7c8798;
+
+  /* Game surface — each GameDefinition sets --game-hue at its boundary. */
+  --game-hue: var(--chalk);
+  --game-ink: #14110f;
+
+  /* States. */
+  --warn: #d8a43b;
+  --gone: #4a5567;
+
+  /* One family, two widths. Width does the work a second family usually does,
+     and costs 90 KB instead of 180. */
+  --face: 'Archivo Variable', system-ui, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --wide: 125%;
+  --normal: 100%;
+
+  /* Type scale. Tuned for arm's length in a dark room, not for a desk. */
+  --t-shout: clamp(2.75rem, 14vw, 4.5rem);
+  --t-loud: clamp(1.75rem, 8vw, 2.5rem);
+  --t-body: 1.0625rem;
+  --t-label: 0.75rem;
+
+  /* Spacing. */
+  --s1: 0.25rem;
+  --s2: 0.5rem;
+  --s3: 0.75rem;
+  --s4: 1rem;
+  --s5: 1.5rem;
+  --s6: 2rem;
+  --s7: 3rem;
+
+  --tap: 3rem;
+
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+
+  color-scheme: dark;
+}
+
+/* The one orchestrated moment in the app is the lobby dealing a spent code
+   away. Everything else holds still, and that one thing degrades to a fade. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --deal-out: fade-out 120ms ease both;
+    --deal-in: fade-in 120ms ease both;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root {
+    --deal-out: deal-out 260ms cubic-bezier(0.4, 0, 0.9, 0.3) both;
+    --deal-in: deal-in 320ms cubic-bezier(0.16, 0.9, 0.3, 1) both;
+  }
+}
