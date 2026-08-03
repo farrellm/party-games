@@ -81,6 +81,24 @@ sends each only to its owner. If your game has secrets, copy the secrecy test in
 `src/game/liars-dice/liars-dice.test.ts` — it walks every reachable state and asserts no
 player's private data appears in anyone else's projection.
 
+If your game needs content — a deck, a list of prompts — bundle it as a module under your
+game's directory and hand out **indices**, not text. The app has to work with no network at
+all, and keeping state, snapshots and the wire down to integers is what stops a hand of ten
+cards from becoming a paragraph on every sync. `src/game/cards-against-humanity/deck.ts` is
+the worked example.
+
+## Content and licensing
+
+The code is BSD-3-Clause. The Cards Against Humanity deck is **not** — it is CC BY-NC-SA
+2.0, the licence its publisher gives it away under, and it keeps that licence here. It sits
+alone in `src/game/cards-against-humanity/deck.ts` with a
+[NOTICE.md](src/game/cards-against-humanity/NOTICE.md) beside it precisely so the two never
+get tangled. This app is free, sells nothing and carries no advertising, which is what the
+noncommercial clause asks for.
+
+That deck is also, by design, extremely offensive. It is the game. Nothing in it reflects
+the views of anyone who worked on this.
+
 ## Deploying
 
 Pushing to `master` builds and publishes to Pages. One-time repository setup:
