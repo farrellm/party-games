@@ -219,4 +219,47 @@ test.describe('QR-signaled handshake', () => {
     // The displayed code must already have moved on, with no pause for ICE.
     expect(result.rotated).toBe(true);
   });
+
+  test('the same answer scanned twice is not mistaken for someone losing a race', async ({
+    page,
+  }) => {
+    await open(page);
+
+    // The host's camera looks ten times a second and the player's code stays up
+    // until their channel opens, so the answer that just worked is seen again
+    // almost immediately. Telling the host to ask for a rescan at that point is
+    // a lie about a join that succeeded.
+    const result = await page.evaluate(async () => {
+      const { OfferPool } = await import('/party-games/src/net/offer-pool.ts');
+      const { answerOffer } = await import('/party-games/src/net/webrtc.ts');
+
+      const pool = new OfferPool(2);
+      await pool.start();
+
+      const live = pool.current();
+      if (!live) throw new Error('pool produced no offer');
+
+      const { answerText } = await answerOffer(live.text, {
+        playerId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301',
+        name: 'Ann',
+      });
+
+      const first = await pool.accept(answerText);
+      const second = await pool.accept(answerText);
+      // Still on camera a frame later, and a frame after that.
+      const third = await pool.accept(answerText);
+
+      pool.close();
+
+      return {
+        firstOk: first.ok,
+        secondReason: second.ok ? null : second.reason,
+        thirdReason: third.ok ? null : third.reason,
+      };
+    });
+
+    expect(result.firstOk).toBe(true);
+    expect(result.secondReason).toBe('duplicate');
+    expect(result.thirdReason).toBe('duplicate');
+  });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { BroadcastChannelTransport } from './net/broadcast-transport.ts';
 import { OfferPool, type LiveOffer } from './net/offer-pool.ts';
 import { WebRtcHostTransport, WebRtcPlayerTransport } from './net/webrtc-transport.ts';
@@ -21,6 +21,30 @@ function useChanges(subscribe: ((handler: () => void) => () => void) | null): vo
   }, [subscribe]);
 }
 
+/** Long enough to read twice, short enough that it stops squatting on the lobby. */
+const NOTICE_MS = 6_000;
+
+/**
+ * A warning that clears itself.
+ *
+ * Nothing on the lobby dismisses a notice, and the next successful scan may
+ * never come, so a message with no expiry is a message that stays forever.
+ */
+function useTransientNotice(): [string | null, (message: string | null) => void] {
+  const [notice, setNotice] = useState<string | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  const show = useCallback((message: string | null) => {
+    clearTimeout(timer.current);
+    setNotice(message);
+    if (message !== null) timer.current = setTimeout(() => setNotice(null), NOTICE_MS);
+  }, []);
+
+  return [notice, show];
+}
+
 export type HostSession = {
   match: MatchHost;
   state: ClientState;
@@ -37,7 +61,7 @@ export function useHostSession(name: string, broadcast: boolean): HostSession | 
   } | null>(null);
 
   const [offer, setOffer] = useState<LiveOffer | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useTransientNotice();
 
   useEffect(() => {
     const me = playerId();
@@ -73,6 +97,10 @@ export function useHostSession(name: string, broadcast: boolean): HostSession | 
 
     void (async () => {
       const result = await pool.accept(text);
+
+      // The camera keeps looking while the player lowers their phone, so the
+      // answer we just took comes back a few more times. That is not news.
+      if (!result.ok && result.reason === 'duplicate') return;
 
       if (!result.ok) {
         setNotice(
