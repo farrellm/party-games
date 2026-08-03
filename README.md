@@ -37,13 +37,26 @@ npm run dev          # http://localhost:5173/party-games/
 `?transport=broadcast` swaps in a BroadcastChannel transport and skips the handshake, and
 `?as=Name` gives each tab its own identity:
 
+Both are real query parameters, so they go **before** the `#`, not inside it — the app
+reads them from `location.search`:
+
 ```
-#/host/liars-dice?transport=broadcast&as=Host
-#/join?transport=broadcast&as=Ann
-#/join?transport=broadcast&as=Bo
+http://localhost:5173/party-games/?transport=broadcast&as=Host#/host/liars-dice
+http://localhost:5173/party-games/?transport=broadcast&as=Ann#/join
+http://localhost:5173/party-games/?transport=broadcast&as=Bo#/join
 ```
 
-Open those in three tabs of one window and you have a game.
+Open those in three tabs of one window and you have a game. BroadcastChannel only reaches
+tabs in the same browser profile, so they have to be ordinary tabs — not separate windows
+in different profiles, and not a private window alongside a normal one.
+
+Cards Against Humanity needs three players, so it needs the host plus two more:
+
+```
+http://localhost:5173/party-games/?transport=broadcast&as=Host#/host/cards-against-humanity
+http://localhost:5173/party-games/?transport=broadcast&as=Ann#/join
+http://localhost:5173/party-games/?transport=broadcast&as=Bo#/join
+```
 
 ## Checks
 
