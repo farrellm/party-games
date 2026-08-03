@@ -22,6 +22,16 @@ async function open(page: Page, path: string, as: string) {
   await expect(page.locator('#root')).not.toBeEmpty();
 }
 
+/*
+ * Controls are located by class, not by accessible name. The hand is made of
+ * buttons carrying 500 possible strings, and enough of them contain the words
+ * "play", "back" or "next" that name-based lookups here are a coin flip
+ * decided by the shuffle.
+ */
+const primary = (page: Page) => page.locator('.btn.primary');
+const flip = (page: Page, which: 'Back' | 'Next') =>
+  page.locator('.cah-flip .btn').nth(which === 'Back' ? 0 : 1);
+
 /** Whoever the shuffle put in the chair, and the three who owe a card. */
 async function split(pages: { page: Page; name: string }[]) {
   const czarName = (await pages[0]!.page.locator('.cah-czar').first().textContent())!.trim();
@@ -82,7 +92,7 @@ test('four phones play a round of cards against humanity', async ({ browser }) =
       const card = page.locator('.cah-card').nth(i);
       if ((await card.getAttribute('aria-pressed')) !== 'true') await card.click();
     }
-    await page.getByRole('button', { name: 'Play' }).click();
+    await primary(page).click();
   }
 
   // The table finishing is the trigger; nobody pressed "start reading".
@@ -92,21 +102,33 @@ test('four phones play a round of cards against humanity', async ({ browser }) =
   // Everyone else is listening, and their screens hold no submissions at all.
   for (const { page } of players) {
     await expect(page.getByText(`${czar.name} is reading`)).toBeVisible();
-    await expect(page.getByRole('button', { name: 'This one wins' })).toHaveCount(0);
+    await expect(primary(page)).toHaveCount(0);
   }
 
-  // The Czar can page through three answers and none of them is signed.
+  // The Czar can page through all three answers.
   await expect(czar.page.getByText('1 of 3')).toBeVisible();
-  await czar.page.getByRole('button', { name: 'Next' }).click();
+  await flip(czar.page, 'Next').click();
   await expect(czar.page.getByText('2 of 3')).toBeVisible();
-  for (const { name } of players) {
-    await expect(czar.page.locator('.cah-sentence')).not.toContainText(name);
+
+  // Nothing on the Czar's screen attributes an answer: names live in the
+  // roster and nowhere near the sentence. Checking for the players' names as
+  // substrings would be worse than useless here — "Boneless" contains "Bo"
+  // and "Cyanide" contains "Cy" — so this is structural.
+  await expect(czar.page.locator('.cah-sentence .roster-name')).toHaveCount(0);
+
+  // And the answer the Czar is reading reached no other device at all.
+  const reading = (await czar.page.locator('.cah-filled, .cah-said').allTextContents())
+    .join(' ')
+    .trim();
+  expect(reading.length).toBeGreaterThan(0);
+  for (const { page } of players) {
+    await expect(page.locator('.game')).not.toContainText(reading);
   }
 
-  await czar.page.getByRole('button', { name: 'This one wins' }).click();
+  await primary(czar.page).click();
 
   for (const { page } of everyone) {
-    await expect(page.getByText(/takes it/)).toBeVisible();
+    await expect(page.locator('.loud')).toContainText('takes it');
   }
   await shoot(host, 'cah-scored');
 
@@ -114,7 +136,7 @@ test('four phones play a round of cards against humanity', async ({ browser }) =
   const scores = await host.locator('.roster-count').allTextContents();
   expect(scores.map(Number).reduce((a, b) => a + b, 0)).toBe(1);
 
-  await host.getByRole('button', { name: 'Next round' }).click();
+  await primary(host).click();
   await expect(host.getByText('Round 2')).toBeVisible();
 
   const next = await split(everyone);
