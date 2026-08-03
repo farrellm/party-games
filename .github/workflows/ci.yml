@@ -28,8 +28,10 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: npm run e2e
+      # All three engines DESIGN.md §13.1 names. WebKit needs system libraries
+      # that only exist here, which is why this job is the one that runs it.
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - run: npm run e2e:all
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
