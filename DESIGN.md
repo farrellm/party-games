@@ -521,7 +521,7 @@ premise of the project.
 
 ## 11. CI/CD
 
-Two workflows. `ci.yml` guards pull requests; `deploy.yml` publishes `main` to Pages.
+Two workflows. `ci.yml` guards pull requests; `deploy.yml` publishes `master` to Pages.
 
 `.github/workflows/ci.yml`:
 
@@ -531,7 +531,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [master]
 
 jobs:
   check:
@@ -555,7 +555,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
 
 permissions:

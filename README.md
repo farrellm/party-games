@@ -83,7 +83,7 @@ player's private data appears in anyone else's projection.
 
 ## Deploying
 
-Pushing to `main` builds and publishes to Pages. One-time repository setup:
+Pushing to `master` builds and publishes to Pages. One-time repository setup:
 **Settings → Pages → Source → GitHub Actions**.
 
 `base`, `start_url` and `scope` all have to agree on `/party-games/`; getting them out of
