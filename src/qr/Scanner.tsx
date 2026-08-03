@@ -4,7 +4,7 @@ import { createDecoder, type Decode } from './scanner.ts';
 type Props = {
   onScan: (text: string) => void;
   /** Repeat scans of the same code are ignored until this changes. */
-  resetKey?: string | number;
+  resetKey?: string | number | undefined;
 };
 
 /** Roughly ten looks a second: fast enough to feel instant, cheap enough to hold. */

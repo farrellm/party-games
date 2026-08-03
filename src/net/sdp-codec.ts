@@ -249,6 +249,17 @@ export function toSdp(h: Handshake): string {
 
 const CANDIDATE_RE = /^a=candidate:\S+ (\d+) (\S+) \d+ (\S+) (\d+) typ host\b/;
 
+/**
+ * A phone offers one or two host candidates. A developer machine with a stack
+ * of docker bridges can offer eight, and each one costs QR density for an
+ * interface no peer at the party can reach.
+ *
+ * Candidates arrive in the engine's own priority order, so keeping the first
+ * few keeps the ones it thinks are best, and holds the code at the version 6-8
+ * that §3.2 is built around.
+ */
+const MAX_CANDIDATES = 6;
+
 export function fromSdp(sdp: string, kind: HandshakeKind, nonce: number): Handshake {
   const ufrag = matchOne(sdp, /^a=ice-ufrag:(.+)$/m, 'ice-ufrag');
   const pwd = matchOne(sdp, /^a=ice-pwd:(.+)$/m, 'ice-pwd');
@@ -258,6 +269,8 @@ export function fromSdp(sdp: string, kind: HandshakeKind, nonce: number): Handsh
   const seen = new Set<string>();
 
   for (const line of sdp.split(/\r\n|\n/)) {
+    if (candidates.length >= MAX_CANDIDATES) break;
+
     const m = CANDIDATE_RE.exec(line.trim());
     if (!m) continue;
 

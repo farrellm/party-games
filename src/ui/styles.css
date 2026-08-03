@@ -30,6 +30,12 @@ body {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+
+  /* This is a phone app. On a laptop it should look like a phone app someone
+     opened on a laptop, not like a phone app that got stretched. */
+  width: 100%;
+  max-width: 30rem;
+  margin-inline: auto;
 }
 
 /* --- Structure: a hairline rule and a small-caps label, and nothing else. --- */
@@ -174,12 +180,128 @@ button {
   font-size: 0.875rem;
 }
 
+/* --- Home: each game is a different colour of light on the same ground --- */
+
+.game-row {
+  display: flex;
+  gap: var(--s4);
+  padding: var(--s4) 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.game-rail {
+  flex: 0 0 3px;
+  background: var(--game-hue);
+}
+
+.game-row.disabled,
+.btn.disabled {
+  color: var(--gone);
+  pointer-events: none;
+}
+
+.game-row.disabled .game-rail {
+  background: var(--gone);
+}
+
+.link {
+  align-self: flex-start;
+  padding: var(--s2) 0;
+  color: var(--dim);
+  font-size: 0.8125rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.paste {
+  padding-top: var(--s3);
+}
+
+.paste-in {
+  width: 100%;
+  padding: var(--s3);
+  border: 1px solid var(--rule);
+  background: var(--slate);
+  color: var(--chalk);
+  resize: vertical;
+  user-select: text;
+}
+
+/* --- Results --- */
+
+.placing {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s4);
+  padding: var(--s3) 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.place {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-label);
+  font-weight: 700;
+  color: var(--dim);
+}
+
+.score {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-loud);
+  font-weight: 700;
+  font-stretch: var(--wide);
+}
+
+.surface {
+  display: contents;
+}
+
 /* --- The handshake: the one part of this app everybody sees every session --- */
+
+.ticket {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  align-items: center;
+}
+
+.ticket-caption {
+  font-size: var(--t-loud);
+}
+
+.ticket-empty {
+  width: min(78vw, 22rem, 44vh);
+  aspect-ratio: 1;
+  border: 1px solid var(--rule);
+}
+
+.deal {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  animation: var(--deal-in);
+}
+
+/* The spent code, dealt away as the next one drops in. It carries no
+   information any more, so it is a shape rather than a copy of the code. */
+.deal-spent {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: min(78vw, 22rem, 44vh);
+  aspect-ratio: 1;
+  background: var(--slate);
+  animation: var(--deal-out);
+  pointer-events: none;
+}
 
 .qr {
   display: block;
   width: 100%;
-  max-width: min(78vw, 22rem);
+  /* The 44vh term keeps the code, the camera and the Start button on one
+     screen. A lobby you have to scroll is a lobby where the host misses taps. */
+  max-width: min(78vw, 22rem, 44vh);
   aspect-ratio: 1;
   margin-inline: auto;
   background: #ede4d3;
@@ -194,7 +316,7 @@ button {
   overflow: hidden;
   background: #000;
   border: 1px solid var(--rule);
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 3 / 2;
 }
 
 .camera video {
@@ -241,9 +363,11 @@ button {
 }
 
 .die {
-  /* Three across on the narrowest phone, and as large as that allows. Held at
-     arm's length and tilted away from a neighbour, this is the whole screen. */
-  width: min(28vw, 7.5rem);
+  /* Exactly three across, so five dice always read as a 3-over-2 throw and
+     never reflow into something else. As large as that allows: held at arm's
+     length and tilted away from a neighbour, this is the whole screen. */
+  width: calc((100% - 2 * var(--s3)) / 3);
+  max-width: 9rem;
   height: auto;
 }
 
@@ -292,16 +416,18 @@ button {
   font-weight: 700;
 }
 
+/* The caller's screen is now a control surface and nothing else, so the names
+   get the room the dice had. Their own dice are spent either way. */
 .picker {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
+  grid-auto-rows: minmax(5rem, 8rem);
   gap: var(--s3);
   align-content: center;
 }
 
 .btn.pick {
-  min-height: 4rem;
-  font-size: 1rem;
+  font-size: 1.125rem;
 }
 
 /* The roster sits on the bottom edge precisely because that is where a thumb

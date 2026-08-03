@@ -50,6 +50,14 @@ export class MatchHost {
       }),
       transport.onPeersChanged((peers) => {
         this.health = new Map(peers.map((p) => [p.id, p.health]));
+
+        // Anyone the transport can reach who has no seat yet gets one. That
+        // covers both paths into a match — a completed QR handshake and the
+        // multi-tab dev transport — without either needing to know about the
+        // other.
+        const arrivals = peers.filter((p) => !this.seats.has(p.id));
+        for (const peer of arrivals) this.seat(peer.id, peer.name);
+
         // A phone falling asleep changes the roster, not the game.
         this.changes.emit();
         this.broadcast();
