@@ -174,6 +174,45 @@ button {
   font-size: 0.875rem;
 }
 
+/* --- The handshake: the one part of this app everybody sees every session --- */
+
+.qr {
+  display: block;
+  width: 100%;
+  max-width: min(78vw, 22rem);
+  aspect-ratio: 1;
+  margin-inline: auto;
+  background: #ede4d3;
+
+  /* Party lighting is bad and the code is the whole product. Render it as
+     large and as bright as the screen allows, and keep its edges crisp. */
+  image-rendering: pixelated;
+}
+
+.camera {
+  position: relative;
+  overflow: hidden;
+  background: #000;
+  border: 1px solid var(--rule);
+  aspect-ratio: 4 / 3;
+}
+
+.camera video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* A rear camera preview reads as a viewfinder, not a mirror. */
+  display: block;
+}
+
+.camera-error {
+  position: absolute;
+  inset: auto 0 0;
+  padding: var(--s3);
+  background: rgb(13 18 32 / 0.9);
+  text-align: center;
+}
+
 /* --- The deal: a spent code leaves, the next one drops in (see tokens.css) --- */
 
 @keyframes deal-out {
