@@ -114,19 +114,17 @@ export function useHostSession(name: string, broadcast: boolean): HostSession | 
       setNotice(null);
       setOffer(pool.current());
 
-      const { rejoined } = transport.adopt(result.joined);
+      // Seating them now is what puts their name on the roster the moment the
+      // code is scanned. Their projection follows from the transport, which
+      // re-announces the peer once the channel is actually open.
+      transport.adopt(result.joined);
       match.seat(result.joined.playerId, result.joined.name);
 
       try {
         await waitForOpen(result.joined.dc);
       } catch (error) {
         setNotice((error as Error).message);
-        return;
       }
-
-      // A rejoin gets its projection the moment the channel opens, so a
-      // reloaded phone lands back in the game rather than in a lobby.
-      if (rejoined) match.seat(result.joined.playerId, result.joined.name);
     })();
   };
 

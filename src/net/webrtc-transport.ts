@@ -46,13 +46,18 @@ export class WebRtcHostTransport implements Transport {
   }
 
   /**
-   * Seat a completed connection.
+   * Seat a connection that is negotiated but very likely not open yet.
    *
    * A playerId we already have a seat for is a reconnect, not a new player: the
-   * seat rebinds and the caller sends the current projection straight back, so
-   * they return with their dice count intact (§4).
+   * seat rebinds, so they return with their dice count intact (§4).
+   *
+   * The peer is announced twice on purpose. The first announcement is what puts
+   * a name on the host's roster the instant the code is scanned; but sends on a
+   * channel that is still connecting are dropped on the floor, so anything that
+   * announcement provoked never left. The second one, on open, is the one whose
+   * messages actually arrive.
    */
-  adopt({ playerId, name, pc, dc }: Joined): { rejoined: boolean } {
+  adopt({ playerId, name, pc, dc }: Joined): void {
     const existing = this.seats.get(playerId);
     if (existing) {
       existing.dc.onmessage = null;
@@ -64,6 +69,18 @@ export class WebRtcHostTransport implements Transport {
 
     dc.onmessage = (event: MessageEvent<string>) => this.receive(seat, event.data);
 
+    if (dc.readyState !== 'open') {
+      dc.addEventListener(
+        'open',
+        () => {
+          // Only if this seat is still the live one: a reconnect will have
+          // replaced it, and a dead channel has nothing to say about the roster.
+          if (this.seats.get(playerId) === seat) this.peerChanges.emit(this.peers());
+        },
+        { once: true },
+      );
+    }
+
     const drop = () => {
       if (['failed', 'closed', 'disconnected'].includes(pc.connectionState)) {
         seat.failed = true;
@@ -73,7 +90,6 @@ export class WebRtcHostTransport implements Transport {
     pc.addEventListener('connectionstatechange', drop);
 
     this.peerChanges.emit(this.peers());
-    return { rejoined: Boolean(existing) };
   }
 
   send(to: PlayerId | '*', type: string, payload: unknown): void {
