@@ -16,6 +16,11 @@
 .cah {
   --paper: #f4f3f0;
   --card-ink: #12100f;
+
+  /* A hand of ten is taller than a phone. Capping the surface is what makes
+     the hand scroll inside itself instead of pushing the roster — and the
+     bottom edge the whole layout is built around — off the screen. */
+  max-height: 100dvh;
 }
 
 /* --- The sentence, which is the whole point of the game --- */
@@ -24,6 +29,16 @@
   display: flex;
   flex-direction: column;
   gap: var(--s3);
+}
+
+/* Holds the sentence in the middle of the free space instead of leaving a
+   hole under it. Used where the sentence is the only thing on screen. */
+.cah-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
 }
 
 .cah-prompt {
@@ -49,9 +64,9 @@
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
   border-bottom: 2px solid var(--dim);
-  /* An empty gap still has to look like somewhere a card goes. */
-  min-width: 6ch;
-  padding-inline: 0.15em;
+  /* No padding: these gaps sit directly against the prompt's own punctuation,
+     and a fraction of an em is enough to strand a colon out on its own. */
+  padding-inline: 0;
 }
 
 .cah-blank:empty::before {
@@ -154,6 +169,15 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--s3);
+}
+
+/* The shell's .btn.primary lands after .btn[disabled] in the cascade and wins
+   on equal specificity, so an unfinished play would otherwise render as a
+   fully lit, entirely unpressable button. */
+.cah .btn.primary[disabled] {
+  background: var(--slate);
+  border-color: var(--rule);
+  color: var(--gone);
 }
 
 .cah-credit {

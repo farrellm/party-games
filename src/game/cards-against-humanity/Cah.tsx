@@ -188,9 +188,14 @@ function Reading({ view, dispatch }: { view: CahView; dispatch: (a: CahAction) =
       <p className="label">
         Read it out — {at + 1} of {all.length}
       </p>
-      <Sentence text={view.black.text} fills={cards} />
 
-      <div className="grow" />
+      {/* The Czar's screen is a teleprompter and the sentence is the only
+          thing on it, so it sits in the middle of the glass rather than
+          clinging to the top with a hole underneath. Ranged left: these run
+          long, and centred prose is harder to read aloud. */}
+      <div className="cah-stage">
+        <Sentence text={view.black.text} fills={cards} />
+      </div>
 
       <div className="cah-flip">
         <button className="btn" disabled={at === 0} onClick={() => setAt(at - 1)}>
