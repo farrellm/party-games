@@ -34,6 +34,15 @@ export default defineConfig({
       },
     }),
   ],
+  server: {
+    // Bind every interface, not just loopback, so the dev server can be
+    // reached from a phone on the same WiFi — which is the only way to test
+    // the QR handshake and the real WebRTC transport (§13.1).
+    host: true,
+    // Vite refuses Host headers it does not recognise, as DNS-rebinding
+    // protection. Reaching the dev server under this name needs it listed.
+    allowedHosts: ['farrellm23.duckdns.org'],
+  },
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
