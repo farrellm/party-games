@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { GAMES } from '../game/registry.ts';
 import { rememberName, trimName } from '../identity.ts';
 import { href } from '../router.ts';
+import { ShareApp } from './ShareApp.tsx';
 
 type Props = {
   name: string;
@@ -10,6 +11,7 @@ type Props = {
 
 export function Home({ name, onName }: Props) {
   const [draft, setDraft] = useState(name);
+  const [sharing, setSharing] = useState(false);
   const ready = trimName(draft).length > 0;
 
   const commit = (value: string) => {
@@ -67,10 +69,23 @@ export function Home({ name, onName }: Props) {
         Join a game
       </a>
 
-      <p className="note">
-        Everyone needs to open this page once before the party. After that it works with no
-        internet at all.
-      </p>
+      {/*
+        The note states the problem, so the button that solves it sits directly
+        under it in a tighter stack than the screen's own gap. Unlike everything
+        above, it is never disabled: handing somebody the app has nothing to do
+        with who you are.
+      */}
+      <div className="stack">
+        <p className="note">
+          Everyone needs to open this page once before the party. After that it works with no
+          internet at all.
+        </p>
+        <button className="btn" onClick={() => setSharing(true)}>
+          Show the link
+        </button>
+      </div>
+
+      {sharing && <ShareApp onClose={() => setSharing(false)} />}
     </main>
   );
 }

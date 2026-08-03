@@ -26,6 +26,32 @@ test('home lists the games once you have a name', async ({ page }) => {
   await expect(page.getByLabel('You')).toHaveValue('Matt');
 });
 
+test('home hands the app to another phone', async ({ page }) => {
+  await page.goto('?transport=broadcast#/');
+
+  // Deliberately before typing a name: sharing the app is the one thing on
+  // Home that must not wait on knowing who you are.
+  await page.getByRole('button', { name: 'Show the link' }).click();
+
+  const qr = page.getByRole('img', { name: 'Link to this app' });
+  await expect(qr).toBeVisible();
+  await page.screenshot({ path: `${SHOTS}/handoff.png` });
+
+  // The scanned URL has to be the app's front door, not whatever this tab
+  // happens to be showing — no dev query, no route hash.
+  const url = await page.getByTestId('app-url').textContent();
+  expect(url).toBe(`${new URL(page.url()).origin}/party-games/`);
+
+  // Both ways out, because the dialog's own close event is what wires them
+  // together and it is easy to leave one of them dangling.
+  await page.keyboard.press('Escape');
+  await expect(qr).toBeHidden();
+
+  await page.getByRole('button', { name: 'Show the link' }).click();
+  await page.getByRole('button', { name: 'Done' }).click();
+  await expect(qr).toBeHidden();
+});
+
 test('the lobby shows a real, scannable code', async ({ page }) => {
   await page.goto('#/host/liars-dice');
 

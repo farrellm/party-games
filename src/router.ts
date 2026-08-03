@@ -45,3 +45,15 @@ export function useBroadcastMode(): boolean {
 export function href(path: string): string {
   return `${globalThis.location.search}#${path}`;
 }
+
+/**
+ * The app's own address, with the hash and any dev query stripped.
+ *
+ * Assembled from the origin and Vite's base rather than hardcoded, so the code
+ * someone scans points at wherever this copy was actually served from: the
+ * Pages deploy, a LAN IP, or the duckdns host the dev server allows (§12).
+ * `location.href` would bake in `#/host/liars-dice` and `?transport=broadcast`.
+ */
+export function appUrl(): string {
+  return `${globalThis.location.origin}${import.meta.env.BASE_URL}`;
+}

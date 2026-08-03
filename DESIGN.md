@@ -333,7 +333,8 @@ Home ─┬─▶ HostLobby ──▶ Game ──▶ Results ─┐
 
 | Screen | Contents |
 | --- | --- |
-| **Home** | Name field (persisted), game list, "Join a game" button |
+| **Home** | Name field (persisted), game list, "Join a game" button, "Show the link" handoff |
+| **ShareApp** | The app's own URL as a QR, full screen, for getting it onto another phone |
 | **HostLobby** | Live offer QR, camera, joined roster, Start button |
 | **JoinScan** | Full-bleed camera, "point at the host's code" |
 | **JoinShowAnswer** | Your QR, large; "show this to the host"; auto-advances on connect |
