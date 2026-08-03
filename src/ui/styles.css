@@ -328,6 +328,46 @@ button {
   image-rendering: pixelated;
 }
 
+/* --- The handoff: the phone stops being an interface and becomes a sign --- */
+
+.handoff {
+  width: 100%;
+  /* Matches #root, so the sheet lands exactly where the app already lives
+     rather than sprawling across a desktop window. */
+  max-width: 30rem;
+  height: 100%;
+  max-height: none;
+  margin: auto;
+  padding: calc(var(--safe-t) + var(--s5)) var(--s5) calc(var(--safe-b) + var(--s5));
+  border: none;
+  background: var(--night);
+  color: var(--chalk);
+}
+
+/* A dialog is display:none until [open]. Setting display on .handoff itself
+   would override that and leave the closed dialog on screen, so the layout
+   hangs off the open state instead. */
+.handoff[open] {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--s5);
+}
+
+/* Held out at arm's length in a dark room: nothing behind the code should
+   compete with it, so the backdrop is the same ground, not a translucent film
+   over a home screen still asking to be read. */
+.handoff::backdrop {
+  background: var(--night);
+}
+
+/* The lobby caps its code at 44vh to leave room for the camera underneath.
+   There is no camera here, and this code gets read from further away, so it
+   takes the width the screen actually has. */
+.handoff .qr {
+  max-width: min(86vw, 26rem);
+}
+
 .camera {
   position: relative;
   overflow: hidden;
