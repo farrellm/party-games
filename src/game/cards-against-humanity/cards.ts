@@ -18,7 +18,7 @@ export type BlackCard = {
 };
 
 /** The decks a game can be dealt from. */
-export type DeckId = 'main';
+export type DeckId = 'main' | 'family';
 
 /**
  * Position is identity. Every index in `CahState`, in every action, and in
