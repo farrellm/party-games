@@ -1,4 +1,5 @@
 import type { PlayerId } from '../../net/handshake.ts';
+import type { DeckId } from './cards.ts';
 
 export const HAND_SIZE = 10;
 
@@ -33,8 +34,16 @@ export type CahState = {
   seats: Seat[];
   /** Index into `seats`. Rotates one seat per round. */
   czar: number;
-  /** Index into BLACK. */
+  /** Index into the deck's black cards. */
   black: number;
+
+  /**
+   * Which deck every index here is an offset into. Carried from config for the
+   * same reason as the target below, and for one more: a snapshot resumed a day
+   * later has to resolve its cards against the deck they were dealt from, not
+   * against whatever the host happens to have selected by then.
+   */
+  deck: DeckId;
 
   blackPile: number[];
   blackDiscard: number[];
@@ -72,6 +81,7 @@ export type CahAction =
   | { t: 'NEXT_ROUND' };
 
 export type CahConfig = {
+  deck: DeckId;
   /** Black cards a seat needs to win the game. */
   pointsToWin: number;
 };

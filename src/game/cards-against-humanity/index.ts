@@ -2,7 +2,7 @@ import type { PlayerId } from '../../net/handshake.ts';
 import type { GameDefinition, Placement, SeatInfo } from '../types.ts';
 import type { Rng } from '../rng.ts';
 import { Cah } from './Cah.tsx';
-import { BLACK, WHITE } from './deck.ts';
+import { deckOf } from './decks.ts';
 import {
   HAND_SIZE,
   type CahAction,
@@ -63,7 +63,7 @@ function czarSeat(state: CahState): Seat {
 }
 
 function prompt(state: CahState) {
-  return BLACK[state.black]!;
+  return deckOf(state).black[state.black]!;
 }
 
 /** Everyone but the Czar owes a card. */
@@ -89,11 +89,12 @@ export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, 
    */
   hue: '#B08CFF',
 
-  defaultConfig: { pointsToWin: 5 },
+  defaultConfig: { deck: 'main', pointsToWin: 5 },
 
   init(players: SeatInfo[], config, rng) {
-    const whites: Piles = { pile: shuffled(indices(WHITE.length), rng), discard: [] };
-    const blacks: Piles = { pile: shuffled(indices(BLACK.length), rng), discard: [] };
+    const deck = deckOf(config);
+    const whites: Piles = { pile: shuffled(indices(deck.white.length), rng), discard: [] };
+    const blacks: Piles = { pile: shuffled(indices(deck.black.length), rng), discard: [] };
 
     const seats: Seat[] = players.map(({ id, name }) => ({
       id,
@@ -112,6 +113,7 @@ export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, 
       blackDiscard: blacks.discard,
       whitePile: whites.pile,
       whiteDiscard: whites.discard,
+      deck: config.deck,
       pointsToWin: config.pointsToWin,
       submissions: [],
       order: [],
@@ -234,6 +236,10 @@ export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, 
   },
 
   view(state, viewer): CahView {
+    // The one place a number becomes a card, and it resolves against the deck
+    // recorded in state rather than a module constant — which is what lets a
+    // second deck exist at all.
+    const deck = deckOf(state);
     const me = seatOf(state, viewer);
     const czar = czarSeat(state);
     const iAmCzar = czar.id === viewer;
@@ -245,12 +251,12 @@ export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, 
     return {
       phase: state.phase,
       round: state.round,
-      black: { text: BLACK[state.black]!.text, pick: BLACK[state.black]!.pick },
+      black: { text: prompt(state).text, pick: prompt(state).pick },
       czar: { id: czar.id, name: czar.name },
       iAmCzar,
 
-      myHand: (me?.hand ?? []).map((c) => ({ id: c, text: WHITE[c]! })),
-      mySubmission: mine ? mine.cards.map((c) => WHITE[c]!) : null,
+      myHand: (me?.hand ?? []).map((c) => ({ id: c, text: deck.white[c]! })),
+      mySubmission: mine ? mine.cards.map((c) => deck.white[c]!) : null,
 
       submittedCount: state.submissions.length,
       waitingCount: Math.max(0, owed(state) - state.submissions.length),
@@ -259,11 +265,11 @@ export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, 
       // Czar their authorship: `order` is a shuffle and nothing here says who.
       submissions:
         iAmCzar && state.phase === 'READING'
-          ? state.order.map((i) => state.submissions[i]!.cards.map((c) => WHITE[c]!))
+          ? state.order.map((i) => state.submissions[i]!.cards.map((c) => deck.white[c]!))
           : null,
 
       winner: winner
-        ? { id: winner.id, name: winner.name, cards: winningCards.map((c) => WHITE[c]!) }
+        ? { id: winner.id, name: winner.name, cards: winningCards.map((c) => deck.white[c]!) }
         : null,
 
       roster: state.seats.map((seat) => ({

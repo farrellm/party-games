@@ -1,6 +1,6 @@
 import { Fragment, useState } from 'react';
 import type { PlayerId } from '../../net/handshake.ts';
-import { BLANK } from './deck.ts';
+import { BLANK } from './cards.ts';
 import type { CahAction, CahView, RosterView } from './state.ts';
 import './cah.css';
 

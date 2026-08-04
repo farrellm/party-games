@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { BLACK, BLANK, WHITE } from './deck.ts';
+import { BLACK, WHITE } from './deck.ts';
+import { BLANK } from './cards.ts';
 
 /*
  * The deck was transcribed by eye from rendered PDF pages, because the source

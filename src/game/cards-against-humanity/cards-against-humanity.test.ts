@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { cardsAgainstHumanity as cah } from './index.ts';
 import { makeRng } from '../rng.ts';
 import { BLACK, WHITE } from './deck.ts';
-import { HAND_SIZE, type CahAction, type CahState } from './state.ts';
+import { HAND_SIZE, type CahAction, type CahConfig, type CahState } from './state.ts';
 
 const PLAYERS = [
   { id: 'ann', name: 'Ann' },
@@ -11,8 +11,9 @@ const PLAYERS = [
   { id: 'di', name: 'Di' },
 ];
 
-function fresh(seed = 1, config = cah.defaultConfig): CahState {
-  return cah.init(PLAYERS, config, makeRng({ seed, calls: 0 }));
+/** `config` is an overlay, so a case names only the setting it is about. */
+function fresh(seed = 1, config: Partial<CahConfig> = {}): CahState {
+  return cah.init(PLAYERS, { ...cah.defaultConfig, ...config }, makeRng({ seed, calls: 0 }));
 }
 
 /** Applies an action the way MatchHost does: validate, then reduce. */

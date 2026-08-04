@@ -14,14 +14,7 @@
  * cards, and they let every string sit in ordinary single quotes unescaped.
  */
 
-/** Where a white card goes. A prompt may have none, one, or several. */
-export const BLANK = '____';
-
-export type BlackCard = {
-  text: string;
-  /** How many white cards this prompt takes. The printed PICK badge. */
-  pick: number;
-};
+import type { BlackCard } from './cards.ts';
 
 export const BLACK: BlackCard[] = [
   { text: 'Hey Reddit! I’m ____. Ask me anything.', pick: 1 },
