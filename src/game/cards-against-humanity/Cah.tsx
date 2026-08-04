@@ -22,19 +22,10 @@ type Props = {
  * shouting them would cost the joke its timing (§7).
  */
 export function Cah({ view, dispatch }: Props) {
-  if (view.gameWinner) {
-    return (
-      <section className="game cah">
-        <p className="label">First to {view.pointsToWin}</p>
-        <div className="grow center">
-          <p className="shout">{view.gameWinner.name} wins</p>
-        </div>
-        <Roster roster={view.roster} />
-        <Credit />
-      </section>
-    );
-  }
-
+  // There is no winner screen here on purpose. The shell owns the end of a
+  // game — it has the cross-game scoreboard and the match's own flow — and a
+  // branch for it would be unreachable anyway, because `result` turning
+  // non-null is exactly what takes this component off the screen (§5).
   if (view.phase === 'SCORED') return <Scored view={view} dispatch={dispatch} />;
   if (view.phase === 'READING') {
     return view.iAmCzar ? (
@@ -240,9 +231,26 @@ function Scored({ view, dispatch }: { view: CahView; dispatch: (a: CahAction) =>
         <p className="loud">{view.winner?.name} takes it</p>
       </div>
 
-      <button className="btn primary" onClick={() => dispatch({ t: 'NEXT_ROUND' })}>
-        Next round
-      </button>
+      {/*
+        The round that settles it offers one button, because there is nothing
+        else left to do. Every other round offers the way out as well: a race to
+        seven can outlive the room's interest in it, and the alternative is a
+        game nobody can leave.
+      */}
+      {view.lastRound ? (
+        <button className="btn primary" onClick={() => dispatch({ t: 'FINISH' })}>
+          Finish
+        </button>
+      ) : (
+        <div className="cah-flip">
+          <button className="btn" onClick={() => dispatch({ t: 'FINISH' })}>
+            Stop here
+          </button>
+          <button className="btn primary" onClick={() => dispatch({ t: 'NEXT_ROUND' })}>
+            Next round
+          </button>
+        </div>
+      )}
       <Roster roster={view.roster} />
       <Credit />
     </section>

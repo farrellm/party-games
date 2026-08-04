@@ -66,6 +66,11 @@ function prompt(state: CahState) {
   return deckOf(state).black[state.black]!;
 }
 
+/** Whether the end condition is satisfied. Not the same as the game being over. */
+function done(state: CahState): boolean {
+  return state.seats.some((s) => s.wins >= state.pointsToWin);
+}
+
 /** Everyone but the Czar owes a card. */
 function owed(state: CahState): number {
   return state.seats.length - 1;
@@ -118,6 +123,7 @@ export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, 
       submissions: [],
       order: [],
       winner: null,
+      over: false,
     };
   },
 
@@ -163,6 +169,13 @@ export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, 
         if (state.phase !== 'SCORED') return 'The round is still going.';
         return null;
       }
+
+      case 'FINISH': {
+        // Legal from any seat, like NEXT_ROUND and for the same reason: the
+        // person who ought to press it may be the one whose phone went to sleep.
+        if (state.phase !== 'SCORED') return 'Finish the round first.';
+        return null;
+      }
     }
   },
 
@@ -185,6 +198,9 @@ export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, 
 
       case 'FORCE_READ':
         return beginReading(state, rng);
+
+      case 'FINISH':
+        return { ...state, over: true };
 
       case 'JUDGE': {
         const winning = state.submissions[state.order[action.pick]!]!;
@@ -246,7 +262,6 @@ export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, 
     const mine = state.submissions.find((s) => s.by === viewer) ?? null;
     const winner = state.winner ? seatOf(state, state.winner) : undefined;
     const winningCards = state.submissions.find((s) => s.by === state.winner)?.cards ?? [];
-    const taken = state.seats.find((s) => s.wins >= state.pointsToWin) ?? null;
 
     return {
       phase: state.phase,
@@ -281,12 +296,12 @@ export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, 
       })),
 
       pointsToWin: state.pointsToWin,
-      gameWinner: taken ? { id: taken.id, name: taken.name } : null,
+      lastRound: done(state),
     };
   },
 
   result(state): Placement | null {
-    if (!state.seats.some((s) => s.wins >= state.pointsToWin)) return null;
+    if (!state.over) return null;
 
     // Stable, so a tie on black cards is broken by seating order rather than
     // by whatever the sort happened to do that night.

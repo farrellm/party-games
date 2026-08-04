@@ -254,6 +254,48 @@ describe('cards against humanity — what the reducer refuses', () => {
 });
 
 describe('cards against humanity — the win', () => {
+  it('keeps the winning card on screen after the round that settles it', () => {
+    /*
+     * The bug this pins: `result` used to key straight off the score, so the
+     * shell flipped the whole match to RESULTS on the winning JUDGE and took
+     * the SCORED screen — the one showing the card that won — with it. Nobody
+     * ever saw what did it.
+     */
+    let state = fresh(4, { pointsToWin: 1 });
+    state = everyonePlays(state);
+    state = apply(state, czarId(state), { t: 'JUDGE', pick: 0 });
+
+    expect(state.phase).toBe('SCORED');
+    expect(cah.view(state, 'ann').lastRound).toBe(true);
+    expect(cah.view(state, 'ann').winner).not.toBeNull();
+    // Still running, so the surface stays up and the card stays readable.
+    expect(cah.result(state)).toBeNull();
+
+    state = apply(state, 'ann', { t: 'FINISH' });
+    expect(cah.result(state)).not.toBeNull();
+  });
+
+  it('can be stopped early from any seat, in a game nobody has won', () => {
+    let state = fresh(4, { pointsToWin: 5 });
+    state = everyonePlays(state);
+    state = apply(state, czarId(state), { t: 'JUDGE', pick: 0 });
+
+    expect(cah.view(state, 'bo').lastRound).toBe(false);
+    expect(cah.result(state)).toBeNull();
+
+    // Not the Czar, not the round's winner — a party game that can only be
+    // ended by one particular person is a party game that does not end.
+    state = apply(state, 'di', { t: 'FINISH' });
+
+    const result = cah.result(state)!;
+    expect(result.placements).toHaveLength(4);
+  });
+
+  it('refuses to finish in the middle of a round', () => {
+    const state = fresh(4);
+    expect(cah.validate(state, 'ann', { t: 'FINISH' })).toBe('Finish the round first.');
+  });
+
   it('has no result until somebody gets there', () => {
     let state = fresh(4, { pointsToWin: 3 });
     expect(cah.result(state)).toBeNull();
@@ -274,8 +316,10 @@ describe('cards against humanity — the win', () => {
       state = everyonePlays(state);
       const hers = state.order.findIndex((o) => state.submissions[o]!.by === 'ann');
       state = apply(state, czarId(state), { t: 'JUDGE', pick: hers >= 0 ? hers : 0 });
-      if (cah.result(state)) break;
-      state = apply(state, 'ann', { t: 'NEXT_ROUND' });
+      // Reaching the target does not end the game by itself — the table still
+      // has to leave the round, which is what keeps the winning card on screen.
+      const settled = cah.view(state, 'ann').lastRound;
+      state = apply(state, 'ann', settled ? { t: 'FINISH' } : { t: 'NEXT_ROUND' });
     }
 
     const result = cah.result(state)!;

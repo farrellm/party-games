@@ -62,6 +62,17 @@ export type CahState = {
   order: number[];
   /** Set in SCORED. */
   winner: PlayerId | null;
+
+  /**
+   * The game is over when the table says so, not when the score says so.
+   *
+   * `result` keys off this rather than off the score directly, because the
+   * shell flips to RESULTS the instant `result` returns — so a game that ended
+   * itself on the winning JUDGE would take the round's own SCORED screen with
+   * it, and that screen is the one that shows the card that won. Ending on the
+   * way out of a round instead means the table always sees what did it.
+   */
+  over: boolean;
 };
 
 /**
@@ -78,7 +89,8 @@ export type CahAction =
   | { t: 'PLAY'; cards: number[] }
   | { t: 'FORCE_READ' }
   | { t: 'JUDGE'; pick: number }
-  | { t: 'NEXT_ROUND' };
+  | { t: 'NEXT_ROUND' }
+  | { t: 'FINISH' };
 
 export type CahConfig = {
   deck: DeckId;
@@ -132,6 +144,10 @@ export type CahView = {
 
   roster: RosterView[];
   pointsToWin: number;
-  /** Set once somebody has taken the match. */
-  gameWinner: { id: PlayerId; name: string } | null;
+  /**
+   * This round settled it, and the next tap ends the game rather than dealing
+   * again. Announcing the winner is the shell's job, not this game's — all the
+   * surface has to do is offer the right button.
+   */
+  lastRound: boolean;
 };
