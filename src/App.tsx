@@ -40,6 +40,14 @@ function HostFlow({
   broadcast: boolean;
 }) {
   const session = useHostSession(name, broadcast);
+  /*
+   * The setup lives here rather than in the lobby because it has to outlive it:
+   * "Play again" starts a second game without passing back through the lobby,
+   * and it must deal the same deck the table just agreed on.
+   */
+  const [config, setConfig] = useState<Record<string, unknown>>(() => ({
+    ...(game.defaultConfig as Record<string, unknown>),
+  }));
   useWakeLock(session?.state.phase === 'PLAYING');
 
   if (!session) return <Connecting />;
@@ -51,7 +59,7 @@ function HostFlow({
       <Results
         game={game}
         state={state}
-        onAgain={() => match.start(game)}
+        onAgain={() => match.start(game, config)}
         onPickAnother={() => {
           match.toLobby();
           go('/');
@@ -72,8 +80,10 @@ function HostFlow({
       notice={session.notice}
       canStart={match.canStart(game)}
       broadcast={broadcast}
+      config={config}
+      onOption={(key, value) => setConfig((was) => ({ ...was, [key]: value }))}
       onAnswer={session.accept}
-      onStart={() => match.start(game)}
+      onStart={() => match.start(game, config)}
     />
   );
 }

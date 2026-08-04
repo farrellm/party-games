@@ -95,13 +95,19 @@ export class MatchHost {
     return this.seats.size >= game.minPlayers && this.seats.size <= game.maxPlayers;
   }
 
-  start(game: AnyGame): void {
+  /**
+   * `config` is whatever the host chose in the lobby, and it goes no further
+   * than `init`: nothing here stores it, no message carries it, and the
+   * snapshot never sees it. A game that needs a setting later must copy it into
+   * its own state, which is also what makes a resumed snapshot self-contained.
+   */
+  start(game: AnyGame, config: unknown = game.defaultConfig): void {
     const players: SeatInfo[] = this.roster().map(({ id, name }) => ({ id, name }));
     const rng = makeRng({ seed: randomSeed(), calls: 0 });
 
     this.running = {
       game,
-      state: game.init(players, game.defaultConfig, rng),
+      state: game.init(players, config, rng),
       rng: rng.snapshot(),
     };
     this.gameNumber++;

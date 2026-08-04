@@ -87,6 +87,13 @@ between games, so a new game implements only its own rules:
 2. Declare a `hue`. The shell is deliberately colourless; that one value is what lights
    your game's surface and its row on the home screen.
 3. Add it to `GAMES` in `src/game/registry.ts`.
+4. If the host should get a say before starting — a deck, a length, a variant — declare
+   `options`. Each one names a key on your config and the values it can take, and the lobby
+   renders them without knowing what they mean. Give a `summary` too: the lobby keeps the
+   options collapsed behind one line, and only your game can write "first to 5".
+
+Whatever the host chooses is passed to `init` and nowhere else. If `view` needs it later,
+copy it into your state — that is also what lets a reloaded game resume correctly.
 
 `view(state, viewer)` is the projection, and it is the only thing standing between hidden
 information and everyone at the table seeing it. The host computes one view per player and

@@ -392,6 +392,151 @@ button {
   text-align: center;
 }
 
+/* --- Setup: what the host settles before starting --------------------------
+ *
+ * Collapsed by default. Three groups of choices is more screen than the lobby
+ * has, and the summary line answers the only question anyone asks in a hurry —
+ * which deck is this going to be.
+ *
+ * A choice is marked by a lit rail down its edge, which is the device Home
+ * already uses for "here is a thing you can choose", at lobby scale. It is the
+ * one coloured thing on this screen; everything else stays furniture.
+ */
+
+.setup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+.setup-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: var(--tap);
+  cursor: pointer;
+
+  /* Both halves of removing the default triangle. */
+  list-style: none;
+}
+
+.setup-head::-webkit-details-marker {
+  display: none;
+}
+
+/* summary is focusable but is not in the shared focus selector, which only
+   covers button, input, a and [tabindex]. */
+.setup-head:focus-visible {
+  outline: 2px solid var(--chalk);
+  outline-offset: 3px;
+}
+
+.setup-grow {
+  flex: 1;
+  gap: var(--s2);
+}
+
+.setup-line {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.setup-chev {
+  color: var(--dim);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.setup[open] .setup-chev {
+  rotate: 90deg;
+}
+
+/* The rail: Home's `.game-rail`, at the scale of a control rather than a row.
+   Lit when chosen, hairline when not — the whole selected state is this. */
+.rail {
+  flex: 0 0 3px;
+  align-self: stretch;
+  min-height: 1.25rem;
+  background: var(--game-hue);
+}
+
+.opt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  border: 0;
+}
+
+/* Hidden, but still focusable and still a radio group — that is what buys the
+   arrow keys. The ring it would have drawn is moved onto its label below. */
+.opt-in {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.opt-in:focus-visible {
+  outline: none;
+}
+
+.opt-in:focus-visible + .opt-choice {
+  outline: 2px solid var(--chalk);
+  outline-offset: 3px;
+}
+
+.opt-stack {
+  display: flex;
+  flex-direction: column;
+}
+
+/* One row, equal columns. Wrapping strands the last choice on a line of its
+   own and reads as a mistake, so these share the width instead. */
+.opt-inline {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: var(--s3);
+}
+
+.opt-choice {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: var(--tap);
+  cursor: pointer;
+}
+
+.opt-text {
+  gap: 0;
+}
+
+.opt-name {
+  font-stretch: var(--wide);
+  font-weight: 600;
+  font-size: 0.875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Unchosen is stated once, on the container, so a new part of a choice cannot
+   quietly stay lit. */
+.opt-in:not(:checked) + .opt-choice {
+  color: var(--gone);
+}
+
+.opt-in:not(:checked) + .opt-choice .rail {
+  background: var(--rule);
+}
+
+.opt-in:not(:checked) + .opt-choice .note {
+  color: var(--gone);
+}
+
 /* --- The game surface: the one lit object, on the shell's quiet ground --- */
 
 .game {

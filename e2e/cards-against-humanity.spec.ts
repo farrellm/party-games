@@ -39,6 +39,108 @@ async function split(pages: { page: Page; name: string }[]) {
   return { czar, players: pages.filter((p) => p !== czar) };
 }
 
+/** Opens the lobby's setup and picks one choice by the words on its label. */
+async function choose(page: Page, choice: string | RegExp) {
+  const setup = page.locator('summary.setup-head');
+  if ((await page.locator('details.setup[open]').count()) === 0) await setup.click();
+  await page.locator('.opt-choice', { hasText: choice }).click();
+}
+
+/** Everyone plays, the Czar judges, and the table lands on the scored round. */
+async function playARound(everyone: { page: Page; name: string }[]) {
+  const { czar, players } = await split(everyone);
+  const pick = await players[0]!.page.locator('.cah-blank').count();
+
+  for (const { page } of players) {
+    for (let i = 0; i < Math.max(pick, 1); i++) {
+      const card = page.locator('.cah-card').nth(i);
+      if ((await card.getAttribute('aria-pressed')) !== 'true') await card.click();
+    }
+    await primary(page).click();
+  }
+
+  await primary(czar.page).click();
+  await expect(everyone[0]!.page.locator('.loud')).toContainText('takes it');
+  return { czar, players };
+}
+
+test('the host picks the deck, and the game is dealt from it', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const host = await context.newPage();
+  const ann = await context.newPage();
+  const bo = await context.newPage();
+  const cy = await context.newPage();
+
+  await open(host, '/host/cards-against-humanity', 'Host');
+  await open(ann, '/join', 'Ann');
+  await open(bo, '/join', 'Bo');
+  await open(cy, '/join', 'Cy');
+  await expect(host.getByText('In (4)')).toBeVisible();
+
+  // Collapsed, the setup still says which deck this is going to be — the one
+  // thing somebody with a child in the room needs off a glance.
+  await expect(host.locator('.setup-line')).toHaveText(/Standard · first to 5/);
+
+  await choose(host, 'Family Edition');
+  await expect(host.locator('.setup-line')).toHaveText(/Family Edition/);
+  await shoot(host, 'cah-setup');
+
+  await host.getByRole('button', { name: 'Start game' }).click();
+
+  await playARound([
+    { page: host, name: 'Host' },
+    { page: ann, name: 'Ann' },
+    { page: bo, name: 'Bo' },
+    { page: cy, name: 'Cy' },
+  ]);
+
+  // Attribution is a licence term, so the credit names the edition in play —
+  // and does not claim CC BY-NC-SA for this one, which nothing grants.
+  const credit = host.locator('.cah-credit');
+  await expect(credit).toHaveText('Cards Against Humanity: Family Edition');
+  await expect(credit).not.toContainText('CC BY-NC-SA');
+
+  await context.close();
+});
+
+test('anyone can stop the game between rounds', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const host = await context.newPage();
+  const ann = await context.newPage();
+  const bo = await context.newPage();
+  const cy = await context.newPage();
+
+  await open(host, '/host/cards-against-humanity', 'Host');
+  await open(ann, '/join', 'Ann');
+  await open(bo, '/join', 'Bo');
+  await open(cy, '/join', 'Cy');
+  await expect(host.getByText('In (4)')).toBeVisible();
+
+  // Endless has no finish line of its own — this is the only way out of it.
+  await choose(host, 'Endless');
+  await host.getByRole('button', { name: 'Start game' }).click();
+
+  const everyone = [
+    { page: host, name: 'Host' },
+    { page: ann, name: 'Ann' },
+    { page: bo, name: 'Bo' },
+    { page: cy, name: 'Cy' },
+  ];
+  const { players } = await playARound(everyone);
+
+  // Not the host, not the Czar: a game only one person can end is a game that
+  // does not end when that person's phone is asleep.
+  await players[0]!.page.getByRole('button', { name: 'Stop here' }).click();
+
+  // Every device lands on the shell's results, not just the one that pressed it.
+  for (const { page } of everyone) {
+    await expect(page.getByText('Match score, all games')).toBeVisible();
+  }
+  await expect(host.getByRole('button', { name: 'Play again' })).toBeVisible();
+
+  await context.close();
+});
+
 test('four phones play a round of cards against humanity', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const host = await context.newPage();

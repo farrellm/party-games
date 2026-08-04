@@ -1,8 +1,18 @@
 import type { PlayerId } from '../../net/handshake.ts';
+import type { DeckId } from './cards.ts';
 
 export const HAND_SIZE = 10;
 
 export type Phase = 'PICKING' | 'READING' | 'SCORED';
+
+/**
+ * What the table agreed to play to.
+ *
+ * `empty` is the deck running out, which at five players is something like a
+ * hundred rounds — so in practice it means "no target, somebody will call it",
+ * and the surface offers a way to do that in every mode.
+ */
+export type Until = 'points' | 'rounds' | 'empty';
 
 export type Seat = {
   id: PlayerId;
@@ -33,8 +43,16 @@ export type CahState = {
   seats: Seat[];
   /** Index into `seats`. Rotates one seat per round. */
   czar: number;
-  /** Index into BLACK. */
+  /** Index into the deck's black cards. */
   black: number;
+
+  /**
+   * Which deck every index here is an offset into. Carried from config for the
+   * same reason as the target below, and for one more: a snapshot resumed a day
+   * later has to resolve its cards against the deck they were dealt from, not
+   * against whatever the host happens to have selected by then.
+   */
+  deck: DeckId;
 
   blackPile: number[];
   blackDiscard: number[];
@@ -42,7 +60,9 @@ export type CahState = {
   whiteDiscard: number[];
 
   /** Carried from config, because `view` is only handed the state. */
-  pointsToWin: number;
+  until: Until;
+  points: number;
+  rounds: number;
 
   /** In arrival order, which is why it is shuffled before the Czar sees it. */
   submissions: Submission[];
@@ -53,6 +73,17 @@ export type CahState = {
   order: number[];
   /** Set in SCORED. */
   winner: PlayerId | null;
+
+  /**
+   * The game is over when the table says so, not when the score says so.
+   *
+   * `result` keys off this rather than off the score directly, because the
+   * shell flips to RESULTS the instant `result` returns — so a game that ended
+   * itself on the winning JUDGE would take the round's own SCORED screen with
+   * it, and that screen is the one that shows the card that won. Ending on the
+   * way out of a round instead means the table always sees what did it.
+   */
+  over: boolean;
 };
 
 /**
@@ -69,11 +100,22 @@ export type CahAction =
   | { t: 'PLAY'; cards: number[] }
   | { t: 'FORCE_READ' }
   | { t: 'JUDGE'; pick: number }
-  | { t: 'NEXT_ROUND' };
+  | { t: 'NEXT_ROUND' }
+  | { t: 'FINISH' };
 
 export type CahConfig = {
-  /** Black cards a seat needs to win the game. */
-  pointsToWin: number;
+  deck: DeckId;
+  until: Until;
+  /**
+   * Both are always present, and only the one `until` names is read.
+   *
+   * They are siblings rather than a discriminated union because each is then an
+   * ordinary key the lobby can offer a list of values for — and because a host
+   * who tries "10 rounds" and changes back still finds their 5 where they left
+   * it.
+   */
+  points: number;
+  rounds: number;
 };
 
 export type RosterView = {
@@ -121,7 +163,23 @@ export type CahView = {
   winner: { id: PlayerId; name: string; cards: string[] } | null;
 
   roster: RosterView[];
-  pointsToWin: number;
-  /** Set once somebody has taken the match. */
-  gameWinner: { id: PlayerId; name: string } | null;
+  /** Already resolved to the one that applies, so the surface just reads it. */
+  ending:
+    | { until: 'points'; points: number }
+    | { until: 'rounds'; rounds: number }
+    | { until: 'empty' };
+
+  /**
+   * Attribution is a licence term, so the credit names the edition actually in
+   * play. `cc` is false for the Family Edition: its PDF grants no Creative
+   * Commons licence, and claiming one would be a false statement rather than a
+   * missing one. See NOTICE.md.
+   */
+  credit: { name: string; cc: boolean };
+  /**
+   * This round settled it, and the next tap ends the game rather than dealing
+   * again. Announcing the winner is the shell's job, not this game's — all the
+   * surface has to do is offer the right button.
+   */
+  lastRound: boolean;
 };

@@ -268,6 +268,9 @@ interface GameDefinition<S, A, V, C> {
   maxPlayers: number;
   defaultConfig: C;
 
+  options?: GameOption<C>[];        // what the host may change before starting
+  summary?: (config: C) => string;  // that setup in one line, in the game's voice
+
   init(players: PlayerId[], config: C, rng: Rng): S;
   validate(state: S, actor: PlayerId, action: A): string | null;   // null = legal
   reduce(state: S, actor: PlayerId, action: A, rng: Rng): S;       // host only
@@ -277,6 +280,14 @@ interface GameDefinition<S, A, V, C> {
   Component: (props: { view: V; me: PlayerId; dispatch: (a: A) => void }) => JSX.Element;
 }
 ```
+
+**Options are declared, not drawn.** A game says what it offers — a key on its config, a
+label, and the values it can take — and the lobby renders that without knowing anything
+about the game. The choice is an argument to `init` and goes no further: nothing stores it,
+no message carries it, and the snapshot never sees it. Anything a player needs to know
+about the setup must be copied into game state by `init`, which is the same rule that makes
+a resumed snapshot self-contained. An option may carry a `when` predicate, so a setting that
+only applies in one mode is absent rather than inert.
 
 **Host-authoritative with per-player view projection.** Not a symmetric replicated state
 machine — that would require every device to hold the full state, which for liar's dice

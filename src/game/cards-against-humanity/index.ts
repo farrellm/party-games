@@ -2,7 +2,8 @@ import type { PlayerId } from '../../net/handshake.ts';
 import type { GameDefinition, Placement, SeatInfo } from '../types.ts';
 import type { Rng } from '../rng.ts';
 import { Cah } from './Cah.tsx';
-import { BLACK, WHITE } from './deck.ts';
+import { deckOf } from './decks.ts';
+import type { DeckId } from './cards.ts';
 import {
   HAND_SIZE,
   type CahAction,
@@ -40,12 +41,17 @@ type Piles = { pile: number[]; discard: number[] };
 /**
  * A deck of 500 whites cannot actually run out with ten players, and a hundred
  * blacks outlast a race to five. The reshuffle is here because a game that
- * silently deals `undefined` on the one night somebody sets pointsToWin to 50
- * is a worse outcome than four lines of bookkeeping.
+ * silently deals `undefined` on the one night somebody sets the target to 50 is
+ * a worse outcome than four lines of bookkeeping.
+ *
+ * `recycle` turns it off, and only the white pile ever turns it off: the
+ * `empty` ending is the whites running out, so recycling them would be
+ * recycling the finish line. Blacks keep coming round either way — a hundred
+ * prompts do not outlast five hundred answers.
  */
-function draw(piles: Piles, rng: Rng): number | undefined {
+function draw(piles: Piles, rng: Rng, recycle = true): number | undefined {
   if (piles.pile.length === 0) {
-    if (piles.discard.length === 0) return undefined;
+    if (!recycle || piles.discard.length === 0) return undefined;
     piles.pile = shuffled(piles.discard, rng);
     piles.discard = [];
   }
@@ -63,12 +69,60 @@ function czarSeat(state: CahState): Seat {
 }
 
 function prompt(state: CahState) {
-  return BLACK[state.black]!;
+  return deckOf(state).black[state.black]!;
 }
 
-/** Everyone but the Czar owes a card. */
+/**
+ * How big a deck is, counted off the deck itself rather than written down
+ * beside it — the two are genuinely different sizes, and a number typed into
+ * the lobby by hand is a number that starts lying the day the cards change.
+ */
+function size(id: DeckId): string {
+  const deck = deckOf({ deck: id });
+  return `${deck.black.length}/${deck.white.length}`;
+}
+
+/** Resolved down to the one that applies, so the surface never has to choose. */
+function ending(state: CahState): CahView['ending'] {
+  switch (state.until) {
+    case 'points':
+      return { until: 'points', points: state.points };
+    case 'rounds':
+      return { until: 'rounds', rounds: state.rounds };
+    case 'empty':
+      return { until: 'empty' };
+  }
+}
+
+/** Whether the end condition is satisfied. Not the same as the game being over. */
+function done(state: CahState): boolean {
+  switch (state.until) {
+    case 'points':
+      return state.seats.some((s) => s.wins >= state.points);
+    case 'rounds':
+      return state.round >= state.rounds;
+    case 'empty':
+      // The pile is the finish line, and it is not refilled in this mode.
+      return state.whitePile.length === 0;
+  }
+}
+
+/**
+ * Everyone but the Czar owes a card — unless they have none left to play.
+ *
+ * Empty hands are only reachable in the `empty` ending, where the deck runs
+ * down for real. A seat with nothing in hand can never submit, so counting it
+ * would leave the round waiting on a card that cannot come.
+ *
+ * A seat that has *already* played still counts even though playing may have
+ * emptied its hand. Dropping it would shrink the total mid-round and flip the
+ * Czar's screen up while somebody was still choosing.
+ */
 function owed(state: CahState): number {
-  return state.seats.length - 1;
+  const czar = czarSeat(state).id;
+  return state.seats.filter(
+    (s) => s.id !== czar && (s.hand.length > 0 || state.submissions.some((x) => x.by === s.id)),
+  ).length;
 }
 
 function beginReading(state: CahState, rng: Rng): CahState {
@@ -78,7 +132,9 @@ function beginReading(state: CahState, rng: Rng): CahState {
 export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, CahConfig> = {
   id: 'cards-against-humanity',
   name: 'Cards Against Humanity',
-  blurb: 'Fill in the blank. The Czar picks the worst. Adults only.',
+  // "Adults only" was true of the only deck there used to be. It is not true of
+  // the one a tap away, and the warning now lives on the choice it belongs to.
+  blurb: 'Fill in the blank. The Czar picks the worst. Adults, or the Family Edition.',
   minPlayers: 3,
   maxPlayers: 10,
 
@@ -89,11 +145,80 @@ export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, 
    */
   hue: '#B08CFF',
 
-  defaultConfig: { pointsToWin: 5 },
+  defaultConfig: { deck: 'main', until: 'points', points: 5, rounds: 10 },
+
+  /*
+   * The deck notes describe who is at the table, because that is what the host
+   * is actually looking at when they decide, and the sizes beside them are
+   * counted off the decks rather than typed in.
+   *
+   * `until` and its number are two options rather than one so that each is an
+   * ordinary key with a list of values; `when` is what keeps the number that
+   * does not apply off the screen.
+   */
+  options: [
+    {
+      kind: 'one',
+      key: 'deck',
+      label: 'Deck',
+      choices: [
+        { value: 'main', label: 'Standard', note: `Adults only · ${size('main')}` },
+        { value: 'family', label: 'Family Edition', note: `Kids can play · ${size('family')}` },
+      ],
+    },
+    {
+      kind: 'one',
+      key: 'until',
+      label: 'Ends',
+      choices: [
+        // Three parallel nouns for what ends it, rather than a preposition and
+        // two nouns — and they fit the row, which "First to" did not.
+        { value: 'points', label: 'Score' },
+        { value: 'rounds', label: 'Rounds' },
+        // Not a promise of a finish line: the deck outlasts the evening, and
+        // somebody calls it. See `Until` in state.ts.
+        { value: 'empty', label: 'Endless' },
+      ],
+    },
+    {
+      kind: 'one',
+      key: 'points',
+      label: 'First to',
+      when: (config) => config.until === 'points',
+      choices: [
+        { value: 3, label: '3' },
+        { value: 5, label: '5' },
+        { value: 7, label: '7' },
+      ],
+    },
+    {
+      kind: 'one',
+      key: 'rounds',
+      label: 'Rounds',
+      when: (config) => config.until === 'rounds',
+      choices: [
+        { value: 5, label: '5' },
+        { value: 10, label: '10' },
+        { value: 15, label: '15' },
+      ],
+    },
+  ],
+
+  summary(config) {
+    const deck = config.deck === 'family' ? 'Family Edition' : 'Standard';
+    const ends =
+      config.until === 'points'
+        ? `first to ${config.points}`
+        : config.until === 'rounds'
+          ? `${config.rounds} rounds`
+          : 'endless';
+    return `${deck} · ${ends}`;
+  },
 
   init(players: SeatInfo[], config, rng) {
-    const whites: Piles = { pile: shuffled(indices(WHITE.length), rng), discard: [] };
-    const blacks: Piles = { pile: shuffled(indices(BLACK.length), rng), discard: [] };
+    const deck = deckOf(config);
+    const whites: Piles = { pile: shuffled(indices(deck.white.length), rng), discard: [] };
+    const blacks: Piles = { pile: shuffled(indices(deck.black.length), rng), discard: [] };
 
     const seats: Seat[] = players.map(({ id, name }) => ({
       id,
@@ -112,10 +237,14 @@ export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, 
       blackDiscard: blacks.discard,
       whitePile: whites.pile,
       whiteDiscard: whites.discard,
-      pointsToWin: config.pointsToWin,
+      deck: config.deck,
+      until: config.until,
+      points: config.points,
+      rounds: config.rounds,
       submissions: [],
       order: [],
       winner: null,
+      over: false,
     };
   },
 
@@ -161,6 +290,13 @@ export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, 
         if (state.phase !== 'SCORED') return 'The round is still going.';
         return null;
       }
+
+      case 'FINISH': {
+        // Legal from any seat, like NEXT_ROUND and for the same reason: the
+        // person who ought to press it may be the one whose phone went to sleep.
+        if (state.phase !== 'SCORED') return 'Finish the round first.';
+        return null;
+      }
     }
   },
 
@@ -184,6 +320,9 @@ export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, 
       case 'FORCE_READ':
         return beginReading(state, rng);
 
+      case 'FINISH':
+        return { ...state, over: true };
+
       case 'JUDGE': {
         const winning = state.submissions[state.order[action.pick]!]!;
         return {
@@ -204,10 +343,14 @@ export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, 
         for (const s of state.submissions) whites.discard.push(...s.cards);
         blacks.discard.push(state.black);
 
+        // Playing to exhaustion means the whites are spent for good; every
+        // other ending recycles them so a long game cannot deal `undefined`.
+        const recycle = state.until !== 'empty';
+
         const seats = state.seats.map((seat) => {
           const hand = [...seat.hand];
           while (hand.length < HAND_SIZE) {
-            const card = draw(whites, rng);
+            const card = draw(whites, rng, recycle);
             if (card === undefined) break;
             hand.push(card);
           }
@@ -234,23 +377,26 @@ export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, 
   },
 
   view(state, viewer): CahView {
+    // The one place a number becomes a card, and it resolves against the deck
+    // recorded in state rather than a module constant — which is what lets a
+    // second deck exist at all.
+    const deck = deckOf(state);
     const me = seatOf(state, viewer);
     const czar = czarSeat(state);
     const iAmCzar = czar.id === viewer;
     const mine = state.submissions.find((s) => s.by === viewer) ?? null;
     const winner = state.winner ? seatOf(state, state.winner) : undefined;
     const winningCards = state.submissions.find((s) => s.by === state.winner)?.cards ?? [];
-    const taken = state.seats.find((s) => s.wins >= state.pointsToWin) ?? null;
 
     return {
       phase: state.phase,
       round: state.round,
-      black: { text: BLACK[state.black]!.text, pick: BLACK[state.black]!.pick },
+      black: { text: prompt(state).text, pick: prompt(state).pick },
       czar: { id: czar.id, name: czar.name },
       iAmCzar,
 
-      myHand: (me?.hand ?? []).map((c) => ({ id: c, text: WHITE[c]! })),
-      mySubmission: mine ? mine.cards.map((c) => WHITE[c]!) : null,
+      myHand: (me?.hand ?? []).map((c) => ({ id: c, text: deck.white[c]! })),
+      mySubmission: mine ? mine.cards.map((c) => deck.white[c]!) : null,
 
       submittedCount: state.submissions.length,
       waitingCount: Math.max(0, owed(state) - state.submissions.length),
@@ -259,11 +405,11 @@ export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, 
       // Czar their authorship: `order` is a shuffle and nothing here says who.
       submissions:
         iAmCzar && state.phase === 'READING'
-          ? state.order.map((i) => state.submissions[i]!.cards.map((c) => WHITE[c]!))
+          ? state.order.map((i) => state.submissions[i]!.cards.map((c) => deck.white[c]!))
           : null,
 
       winner: winner
-        ? { id: winner.id, name: winner.name, cards: winningCards.map((c) => WHITE[c]!) }
+        ? { id: winner.id, name: winner.name, cards: winningCards.map((c) => deck.white[c]!) }
         : null,
 
       roster: state.seats.map((seat) => ({
@@ -274,13 +420,14 @@ export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, 
         isCzar: seat.id === czar.id,
       })),
 
-      pointsToWin: state.pointsToWin,
-      gameWinner: taken ? { id: taken.id, name: taken.name } : null,
+      ending: ending(state),
+      lastRound: done(state),
+      credit: { name: deck.name, cc: state.deck === 'main' },
     };
   },
 
   result(state): Placement | null {
-    if (!state.seats.some((s) => s.wins >= state.pointsToWin)) return null;
+    if (!state.over) return null;
 
     // Stable, so a tie on black cards is broken by seating order rather than
     // by whatever the sort happened to do that night.

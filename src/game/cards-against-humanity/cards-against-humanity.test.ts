@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { cardsAgainstHumanity as cah } from './index.ts';
 import { makeRng } from '../rng.ts';
 import { BLACK, WHITE } from './deck.ts';
-import { HAND_SIZE, type CahAction, type CahState } from './state.ts';
+import { deckOf } from './decks.ts';
+import { HAND_SIZE, type CahAction, type CahConfig, type CahState } from './state.ts';
 
 const PLAYERS = [
   { id: 'ann', name: 'Ann' },
@@ -11,8 +12,9 @@ const PLAYERS = [
   { id: 'di', name: 'Di' },
 ];
 
-function fresh(seed = 1, config = cah.defaultConfig): CahState {
-  return cah.init(PLAYERS, config, makeRng({ seed, calls: 0 }));
+/** `config` is an overlay, so a case names only the setting it is about. */
+function fresh(seed = 1, config: Partial<CahConfig> = {}): CahState {
+  return cah.init(PLAYERS, { ...cah.defaultConfig, ...config }, makeRng({ seed, calls: 0 }));
 }
 
 /** Applies an action the way MatchHost does: validate, then reduce. */
@@ -36,7 +38,7 @@ function others(state: CahState): string[] {
 
 /** Everyone but the Czar plays the first legal cards off the top of their hand. */
 function everyonePlays(state: CahState): CahState {
-  const pick = BLACK[state.black]!.pick;
+  const pick = deckOf(state).black[state.black]!.pick;
   for (const id of others(state)) {
     state = apply(state, id, { t: 'PLAY', cards: seat(state, id).hand.slice(0, pick) });
   }
@@ -253,8 +255,50 @@ describe('cards against humanity — what the reducer refuses', () => {
 });
 
 describe('cards against humanity — the win', () => {
+  it('keeps the winning card on screen after the round that settles it', () => {
+    /*
+     * The bug this pins: `result` used to key straight off the score, so the
+     * shell flipped the whole match to RESULTS on the winning JUDGE and took
+     * the SCORED screen — the one showing the card that won — with it. Nobody
+     * ever saw what did it.
+     */
+    let state = fresh(4, { points: 1 });
+    state = everyonePlays(state);
+    state = apply(state, czarId(state), { t: 'JUDGE', pick: 0 });
+
+    expect(state.phase).toBe('SCORED');
+    expect(cah.view(state, 'ann').lastRound).toBe(true);
+    expect(cah.view(state, 'ann').winner).not.toBeNull();
+    // Still running, so the surface stays up and the card stays readable.
+    expect(cah.result(state)).toBeNull();
+
+    state = apply(state, 'ann', { t: 'FINISH' });
+    expect(cah.result(state)).not.toBeNull();
+  });
+
+  it('can be stopped early from any seat, in a game nobody has won', () => {
+    let state = fresh(4, { points: 5 });
+    state = everyonePlays(state);
+    state = apply(state, czarId(state), { t: 'JUDGE', pick: 0 });
+
+    expect(cah.view(state, 'bo').lastRound).toBe(false);
+    expect(cah.result(state)).toBeNull();
+
+    // Not the Czar, not the round's winner — a party game that can only be
+    // ended by one particular person is a party game that does not end.
+    state = apply(state, 'di', { t: 'FINISH' });
+
+    const result = cah.result(state)!;
+    expect(result.placements).toHaveLength(4);
+  });
+
+  it('refuses to finish in the middle of a round', () => {
+    const state = fresh(4);
+    expect(cah.validate(state, 'ann', { t: 'FINISH' })).toBe('Finish the round first.');
+  });
+
   it('has no result until somebody gets there', () => {
-    let state = fresh(4, { pointsToWin: 3 });
+    let state = fresh(4, { points: 3 });
     expect(cah.result(state)).toBeNull();
 
     // Always hand it to whoever sits at position 0 of the shuffle.
@@ -265,7 +309,7 @@ describe('cards against humanity — the win', () => {
   });
 
   it('ranks by black cards and scores like the rest of the app', () => {
-    let state = fresh(4, { pointsToWin: 2 });
+    let state = fresh(4, { points: 2 });
 
     // Give Ann the round whenever she is in it — on the rounds she is Czar she
     // has nothing in the pile, so somebody else takes that one.
@@ -273,8 +317,10 @@ describe('cards against humanity — the win', () => {
       state = everyonePlays(state);
       const hers = state.order.findIndex((o) => state.submissions[o]!.by === 'ann');
       state = apply(state, czarId(state), { t: 'JUDGE', pick: hers >= 0 ? hers : 0 });
-      if (cah.result(state)) break;
-      state = apply(state, 'ann', { t: 'NEXT_ROUND' });
+      // Reaching the target does not end the game by itself — the table still
+      // has to leave the round, which is what keeps the winning card on screen.
+      const settled = cah.view(state, 'ann').lastRound;
+      state = apply(state, 'ann', settled ? { t: 'FINISH' } : { t: 'NEXT_ROUND' });
     }
 
     const result = cah.result(state)!;
@@ -287,7 +333,134 @@ describe('cards against humanity — the win', () => {
   });
 });
 
-describe('cards against humanity — secrecy', () => {
+describe('cards against humanity — how the game ends', () => {
+  /** Rounds until `lastRound`, capped so a broken condition fails rather than hangs. */
+  function runUntilSettled(state: CahState, cap = 30): CahState {
+    for (let i = 0; i < cap && !cah.view(state, 'ann').lastRound; i++) {
+      state = playRound(state);
+      if (cah.view(state, 'ann').lastRound) break;
+      state = apply(state, 'ann', { t: 'NEXT_ROUND' });
+    }
+    return state;
+  }
+
+  it('plays to a score when that is what was chosen', () => {
+    const state = runUntilSettled(fresh(4, { until: 'points', points: 3 }));
+    expect(Math.max(...state.seats.map((s) => s.wins))).toBe(3);
+  });
+
+  it('plays a fixed number of rounds, and not one either side', () => {
+    let state = fresh(4, { until: 'rounds', rounds: 4 });
+
+    for (let round = 1; round <= 3; round++) {
+      state = playRound(state);
+      expect(cah.view(state, 'ann').lastRound, `after round ${round}`).toBe(false);
+      state = apply(state, 'ann', { t: 'NEXT_ROUND' });
+    }
+
+    state = playRound(state);
+    expect(state.round).toBe(4);
+    expect(cah.view(state, 'ann').lastRound).toBe(true);
+  });
+
+  it('ignores the score in a fixed-length game', () => {
+    // Somebody running away with it does not cut the evening short.
+    let state = fresh(4, { until: 'rounds', rounds: 6 });
+    for (let i = 0; i < 4; i++) {
+      state = everyonePlays(state);
+      const hers = state.order.findIndex((o) => state.submissions[o]!.by === 'ann');
+      state = apply(state, czarId(state), { t: 'JUDGE', pick: hers >= 0 ? hers : 0 });
+      state = apply(state, 'ann', { t: 'NEXT_ROUND' });
+    }
+    expect(seat(state, 'ann').wins).toBeGreaterThanOrEqual(3);
+    expect(cah.view(state, 'ann').lastRound).toBe(false);
+  });
+
+  it('never ends on its own when the deck is the finish line', () => {
+    // 500 whites at this table is ~112 rounds, so "endless" is exactly that in
+    // any real evening. The only way out is somebody calling it.
+    let state = fresh(4, { until: 'empty' });
+    for (let i = 0; i < 12; i++) {
+      state = apply(playRound(state), 'ann', { t: 'NEXT_ROUND' });
+    }
+    expect(cah.view(state, 'ann').lastRound).toBe(false);
+    expect(cah.result(state)).toBeNull();
+
+    state = apply(playRound(state), 'cy', { t: 'FINISH' });
+    expect(cah.result(state)).not.toBeNull();
+  });
+
+  it('spends the white pile for good when playing to exhaustion', () => {
+    // Forced, because the real path is a hundred rounds long. The discard is
+    // stocked and the pile is nearly out: recycling would refill every hand.
+    const start = fresh(11, { until: 'empty' });
+    const thin: CahState = {
+      ...start,
+      whitePile: start.whitePile.slice(0, 2),
+      whiteDiscard: start.whitePile.slice(2),
+    };
+
+    const state = apply(playRound(thin), 'ann', { t: 'NEXT_ROUND' });
+
+    expect(state.whitePile).toHaveLength(0);
+    expect(state.whiteDiscard.length).toBeGreaterThan(0);
+    expect(state.seats.some((s) => s.hand.length < HAND_SIZE)).toBe(true);
+    expect(cah.view(state, 'ann').lastRound).toBe(true);
+  });
+
+  it('still recycles the black pile when the whites are the finish line', () => {
+    // A hundred prompts cannot outlast five hundred answers, so the game would
+    // deal `undefined` for a prompt long before the whites ran out.
+    const start = fresh(11, { until: 'empty' });
+    const thin: CahState = { ...start, blackPile: [], blackDiscard: [...start.blackPile] };
+
+    const state = apply(playRound(thin), 'ann', { t: 'NEXT_ROUND' });
+    expect(state.black).toBeDefined();
+    expect(BLACK[state.black]).toBeDefined();
+  });
+
+  it('does not wait on a seat with nothing left to play', () => {
+    // Only reachable in the exhaustion ending. A seat holding no cards can
+    // never submit, and counting it would hang the round for everyone else.
+    const start = fresh(12, { until: 'empty' });
+    const [broke] = others(start);
+    const stripped: CahState = {
+      ...start,
+      whitePile: [],
+      seats: start.seats.map((s) => (s.id === broke ? { ...s, hand: [] } : s)),
+    };
+
+    let state = stripped;
+    for (const id of others(state).filter((id) => id !== broke)) {
+      state = apply(state, id, { t: 'PLAY', cards: seat(state, id).hand.slice(0, 1) });
+    }
+
+    // Everyone who could play has, so the Czar's screen fills anyway.
+    expect(state.phase).toBe('READING');
+  });
+
+  it('tells the surface which ending is in play, and only that one', () => {
+    expect(cah.view(fresh(1, { until: 'points', points: 7 }), 'ann').ending).toEqual({
+      until: 'points',
+      points: 7,
+    });
+    expect(cah.view(fresh(1, { until: 'rounds', rounds: 12 }), 'ann').ending).toEqual({
+      until: 'rounds',
+      rounds: 12,
+    });
+    expect(cah.view(fresh(1, { until: 'empty' }), 'ann').ending).toEqual({ until: 'empty' });
+  });
+});
+
+/*
+ * Invariant 3, walked over every deck rather than over the one that happened to
+ * be hard-coded. A second deck is a second set of card text, and this walk
+ * identifies a leak *by* card text — so it has to be re-run, not assumed.
+ */
+describe.each(['main', 'family'] as const)(
+  'cards against humanity — secrecy (%s deck)',
+  (deck) => {
+    const { black: BLACK_, white: WHITE_ } = deckOf({ deck });
   /**
    * The invariant this game exists to test: a hand of ten is the largest secret
    * in the app, and the Czar has to be able to judge without being told whose
@@ -309,7 +482,7 @@ describe('cards against humanity — secrecy', () => {
       // unique across the deck, so finding one is proof of a leak.
       for (const card of other.hand) {
         expect(json, `${other.id}'s hand leaked to ${viewer}`).not.toContain(
-          JSON.stringify(WHITE[card]!),
+          JSON.stringify(WHITE_[card]!),
         );
       }
     }
@@ -321,16 +494,24 @@ describe('cards against humanity — secrecy', () => {
       expect(view.submissions).toBeNull();
     }
 
-    // Whatever the Czar can see, it never says who wrote it.
+    /*
+     * Whatever the Czar can see, it never says who wrote it.
+     *
+     * Checked structurally rather than by searching the JSON for "by": an entry
+     * is a bare array of card text, so it has no key to hang an author on. The
+     * substring version of this both missed an author field under any other
+     * name and tripped over the Family Edition's "A hot air balloon powered by
+     * fart gas."
+     */
     for (const entry of view.submissions ?? []) {
-      expect(JSON.stringify(entry)).not.toContain('by');
       expect(Array.isArray(entry)).toBe(true);
+      expect(entry.every((card) => typeof card === 'string')).toBe(true);
     }
 
     // The piles are the next round's secrets and are projected to nobody.
     for (const upcoming of state.whitePile.slice(0, 20)) {
       const held = state.seats.some((s) => s.id === viewer && s.hand.includes(upcoming));
-      if (!held) expect(json).not.toContain(JSON.stringify(WHITE[upcoming]!));
+      if (!held) expect(json).not.toContain(JSON.stringify(WHITE_[upcoming]!));
     }
 
     for (const entry of view.roster) {
@@ -343,14 +524,14 @@ describe('cards against humanity — secrecy', () => {
   /** Walks a whole game, so every phase and both Czar roles are covered. */
   function reachableStates(): CahState[] {
     const states: CahState[] = [];
-    let state = fresh(4, { pointsToWin: 3 });
+    let state = fresh(4, { deck, points: 3 });
     states.push(state);
 
     for (let round = 0; round < 10; round++) {
       for (const id of others(state)) {
         state = apply(state, id, {
           t: 'PLAY',
-          cards: seat(state, id).hand.slice(0, BLACK[state.black]!.pick),
+          cards: seat(state, id).hand.slice(0, BLACK_[state.black]!.pick),
         });
         states.push(state);
       }
@@ -378,11 +559,11 @@ describe('cards against humanity — secrecy', () => {
   it('hides the submissions while people are still picking', () => {
     // The moment of maximum temptation: cards are down, the round is not shut,
     // and the Czar's screen would love to start showing them.
-    let state = fresh();
+    let state = fresh(1, { deck });
     const [a] = others(state);
     state = apply(state, a!, {
       t: 'PLAY',
-      cards: seat(state, a!).hand.slice(0, BLACK[state.black]!.pick),
+      cards: seat(state, a!).hand.slice(0, BLACK_[state.black]!.pick),
     });
 
     const czarView = cah.view(state, czarId(state));
@@ -391,12 +572,12 @@ describe('cards against humanity — secrecy', () => {
     expect(czarView.waitingCount).toBe(2);
 
     for (const card of seat(state, a!).hand) {
-      expect(JSON.stringify(czarView)).not.toContain(JSON.stringify(WHITE[card]!));
+      expect(JSON.stringify(czarView)).not.toContain(JSON.stringify(WHITE_[card]!));
     }
   });
 
   it('reveals only the winning play, and only once it has been read out', () => {
-    let state = everyonePlays(fresh(9));
+    let state = everyonePlays(fresh(9, { deck }));
     const czarView = cah.view(state, czarId(state));
     expect(czarView.submissions).toHaveLength(3);
 
@@ -412,15 +593,16 @@ describe('cards against humanity — secrecy', () => {
       for (const card of loser.cards) {
         if (seat(state, 'ann').hand.includes(card)) continue;
         if (state.submissions.find((s) => s.by === 'ann')?.cards.includes(card)) continue;
-        expect(JSON.stringify(annsView)).not.toContain(JSON.stringify(WHITE[card]!));
+        expect(JSON.stringify(annsView)).not.toContain(JSON.stringify(WHITE_[card]!));
       }
     }
   });
 
   it('shows a spectator no hand at all', () => {
-    const view = cah.view(fresh(), 'stranger');
+    const view = cah.view(fresh(1, { deck }), 'stranger');
     expect(view.myHand).toEqual([]);
     expect(view.mySubmission).toBeNull();
     expect(view.submissions).toBeNull();
   });
-});
+  },
+);

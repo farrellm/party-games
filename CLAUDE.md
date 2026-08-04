@@ -156,6 +156,12 @@ A `GameDefinition` (`src/game/types.ts`) is a pure reducer, a projection, and a 
 The shell is deliberately colourless; `hue` is what lights the game's surface and its
 home-screen row.
 
+Optional `options` / `summary` let the host settle something in the lobby first (CAH's deck
+and end condition are the worked example). An option names a key on the game's config and
+the values it can take; the lobby renders it knowing nothing else, collapsed behind
+`summary`. **The choice reaches `init` and stops there** — it is not on the wire and not in
+the snapshot, so anything `view` needs must be copied into game state by `init`.
+
 ## Conventions
 
 - TypeScript is strict, plus `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`,
