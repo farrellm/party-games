@@ -38,6 +38,21 @@ export function Cah({ view, dispatch }: Props) {
   return <Composing key={view.round} view={view} dispatch={dispatch} />;
 }
 
+/**
+ * Where the round sits in whatever the table agreed to play to. One line, in
+ * the shell's own label voice, so it reads as furniture rather than as a score.
+ */
+function standing(view: CahView): string {
+  switch (view.ending.until) {
+    case 'points':
+      return `Round ${view.round} · first to ${view.ending.points}`;
+    case 'rounds':
+      return `Round ${view.round} of ${view.ending.rounds}`;
+    case 'empty':
+      return `Round ${view.round}`;
+  }
+}
+
 /* --- The signature: a prompt whose blanks fill in as you choose --- */
 
 function Sentence({ text, fills }: { text: string; fills: string[] }) {
@@ -209,7 +224,7 @@ function Reading({ view, dispatch }: { view: CahView; dispatch: (a: CahAction) =
 function Listening({ view }: { view: CahView }) {
   return (
     <section className="game cah">
-      <p className="label">Round {view.round}</p>
+      <p className="label">{standing(view)}</p>
       <Sentence text={view.black.text} fills={[]} />
       <div className="grow center">
         <p className="loud dim">{view.czar.name} is reading</p>
@@ -224,7 +239,7 @@ function Listening({ view }: { view: CahView }) {
 function Scored({ view, dispatch }: { view: CahView; dispatch: (a: CahAction) => void }) {
   return (
     <section className="game cah">
-      <p className="label">Round {view.round}</p>
+      <p className="label">{standing(view)}</p>
       <Sentence text={view.black.text} fills={view.winner?.cards ?? []} />
 
       <div className="grow center">

@@ -5,6 +5,15 @@ export const HAND_SIZE = 10;
 
 export type Phase = 'PICKING' | 'READING' | 'SCORED';
 
+/**
+ * What the table agreed to play to.
+ *
+ * `empty` is the deck running out, which at five players is something like a
+ * hundred rounds — so in practice it means "no target, somebody will call it",
+ * and the surface offers a way to do that in every mode.
+ */
+export type Until = 'points' | 'rounds' | 'empty';
+
 export type Seat = {
   id: PlayerId;
   name: string;
@@ -51,7 +60,9 @@ export type CahState = {
   whiteDiscard: number[];
 
   /** Carried from config, because `view` is only handed the state. */
-  pointsToWin: number;
+  until: Until;
+  points: number;
+  rounds: number;
 
   /** In arrival order, which is why it is shuffled before the Czar sees it. */
   submissions: Submission[];
@@ -94,8 +105,17 @@ export type CahAction =
 
 export type CahConfig = {
   deck: DeckId;
-  /** Black cards a seat needs to win the game. */
-  pointsToWin: number;
+  until: Until;
+  /**
+   * Both are always present, and only the one `until` names is read.
+   *
+   * They are siblings rather than a discriminated union because each is then an
+   * ordinary key the lobby can offer a list of values for — and because a host
+   * who tries "10 rounds" and changes back still finds their 5 where they left
+   * it.
+   */
+  points: number;
+  rounds: number;
 };
 
 export type RosterView = {
@@ -143,7 +163,8 @@ export type CahView = {
   winner: { id: PlayerId; name: string; cards: string[] } | null;
 
   roster: RosterView[];
-  pointsToWin: number;
+  /** Already resolved to the one that applies, so the surface just reads it. */
+  ending: { until: 'points'; points: number } | { until: 'rounds'; rounds: number } | { until: 'empty' };
   /**
    * This round settled it, and the next tap ends the game rather than dealing
    * again. Announcing the winner is the shell's job, not this game's — all the

@@ -40,12 +40,17 @@ type Piles = { pile: number[]; discard: number[] };
 /**
  * A deck of 500 whites cannot actually run out with ten players, and a hundred
  * blacks outlast a race to five. The reshuffle is here because a game that
- * silently deals `undefined` on the one night somebody sets pointsToWin to 50
- * is a worse outcome than four lines of bookkeeping.
+ * silently deals `undefined` on the one night somebody sets the target to 50 is
+ * a worse outcome than four lines of bookkeeping.
+ *
+ * `recycle` turns it off, and only the white pile ever turns it off: the
+ * `empty` ending is the whites running out, so recycling them would be
+ * recycling the finish line. Blacks keep coming round either way — a hundred
+ * prompts do not outlast five hundred answers.
  */
-function draw(piles: Piles, rng: Rng): number | undefined {
+function draw(piles: Piles, rng: Rng, recycle = true): number | undefined {
   if (piles.pile.length === 0) {
-    if (piles.discard.length === 0) return undefined;
+    if (!recycle || piles.discard.length === 0) return undefined;
     piles.pile = shuffled(piles.discard, rng);
     piles.discard = [];
   }
@@ -66,14 +71,47 @@ function prompt(state: CahState) {
   return deckOf(state).black[state.black]!;
 }
 
-/** Whether the end condition is satisfied. Not the same as the game being over. */
-function done(state: CahState): boolean {
-  return state.seats.some((s) => s.wins >= state.pointsToWin);
+/** Resolved down to the one that applies, so the surface never has to choose. */
+function ending(state: CahState): CahView['ending'] {
+  switch (state.until) {
+    case 'points':
+      return { until: 'points', points: state.points };
+    case 'rounds':
+      return { until: 'rounds', rounds: state.rounds };
+    case 'empty':
+      return { until: 'empty' };
+  }
 }
 
-/** Everyone but the Czar owes a card. */
+/** Whether the end condition is satisfied. Not the same as the game being over. */
+function done(state: CahState): boolean {
+  switch (state.until) {
+    case 'points':
+      return state.seats.some((s) => s.wins >= state.points);
+    case 'rounds':
+      return state.round >= state.rounds;
+    case 'empty':
+      // The pile is the finish line, and it is not refilled in this mode.
+      return state.whitePile.length === 0;
+  }
+}
+
+/**
+ * Everyone but the Czar owes a card — unless they have none left to play.
+ *
+ * Empty hands are only reachable in the `empty` ending, where the deck runs
+ * down for real. A seat with nothing in hand can never submit, so counting it
+ * would leave the round waiting on a card that cannot come.
+ *
+ * A seat that has *already* played still counts even though playing may have
+ * emptied its hand. Dropping it would shrink the total mid-round and flip the
+ * Czar's screen up while somebody was still choosing.
+ */
 function owed(state: CahState): number {
-  return state.seats.length - 1;
+  const czar = czarSeat(state).id;
+  return state.seats.filter(
+    (s) => s.id !== czar && (s.hand.length > 0 || state.submissions.some((x) => x.by === s.id)),
+  ).length;
 }
 
 function beginReading(state: CahState, rng: Rng): CahState {
@@ -94,7 +132,7 @@ export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, 
    */
   hue: '#B08CFF',
 
-  defaultConfig: { deck: 'main', pointsToWin: 5 },
+  defaultConfig: { deck: 'main', until: 'points', points: 5, rounds: 10 },
 
   init(players: SeatInfo[], config, rng) {
     const deck = deckOf(config);
@@ -119,7 +157,9 @@ export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, 
       whitePile: whites.pile,
       whiteDiscard: whites.discard,
       deck: config.deck,
-      pointsToWin: config.pointsToWin,
+      until: config.until,
+      points: config.points,
+      rounds: config.rounds,
       submissions: [],
       order: [],
       winner: null,
@@ -222,10 +262,14 @@ export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, 
         for (const s of state.submissions) whites.discard.push(...s.cards);
         blacks.discard.push(state.black);
 
+        // Playing to exhaustion means the whites are spent for good; every
+        // other ending recycles them so a long game cannot deal `undefined`.
+        const recycle = state.until !== 'empty';
+
         const seats = state.seats.map((seat) => {
           const hand = [...seat.hand];
           while (hand.length < HAND_SIZE) {
-            const card = draw(whites, rng);
+            const card = draw(whites, rng, recycle);
             if (card === undefined) break;
             hand.push(card);
           }
@@ -295,7 +339,7 @@ export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, 
         isCzar: seat.id === czar.id,
       })),
 
-      pointsToWin: state.pointsToWin,
+      ending: ending(state),
       lastRound: done(state),
     };
   },
