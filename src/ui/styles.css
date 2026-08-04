@@ -494,10 +494,13 @@ button {
   flex-direction: column;
 }
 
+/* One row, equal columns. Wrapping strands the last choice on a line of its
+   own and reads as a mistake, so these share the width instead. */
 .opt-inline {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s4);
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: var(--s3);
 }
 
 .opt-choice {

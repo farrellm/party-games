@@ -3,6 +3,7 @@ import type { GameDefinition, Placement, SeatInfo } from '../types.ts';
 import type { Rng } from '../rng.ts';
 import { Cah } from './Cah.tsx';
 import { deckOf } from './decks.ts';
+import type { DeckId } from './cards.ts';
 import {
   HAND_SIZE,
   type CahAction,
@@ -71,6 +72,16 @@ function prompt(state: CahState) {
   return deckOf(state).black[state.black]!;
 }
 
+/**
+ * How big a deck is, counted off the deck itself rather than written down
+ * beside it — the two are genuinely different sizes, and a number typed into
+ * the lobby by hand is a number that starts lying the day the cards change.
+ */
+function size(id: DeckId): string {
+  const deck = deckOf({ deck: id });
+  return `${deck.black.length}/${deck.white.length}`;
+}
+
 /** Resolved down to the one that applies, so the surface never has to choose. */
 function ending(state: CahState): CahView['ending'] {
   switch (state.until) {
@@ -121,7 +132,9 @@ function beginReading(state: CahState, rng: Rng): CahState {
 export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, CahConfig> = {
   id: 'cards-against-humanity',
   name: 'Cards Against Humanity',
-  blurb: 'Fill in the blank. The Czar picks the worst. Adults only.',
+  // "Adults only" was true of the only deck there used to be. It is not true of
+  // the one a tap away, and the warning now lives on the choice it belongs to.
+  blurb: 'Fill in the blank. The Czar picks the worst. Adults, or the Family Edition.',
   minPlayers: 3,
   maxPlayers: 10,
 
@@ -133,6 +146,74 @@ export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, 
   hue: '#B08CFF',
 
   defaultConfig: { deck: 'main', until: 'points', points: 5, rounds: 10 },
+
+  /*
+   * The deck notes describe who is at the table, because that is what the host
+   * is actually looking at when they decide, and the sizes beside them are
+   * counted off the decks rather than typed in.
+   *
+   * `until` and its number are two options rather than one so that each is an
+   * ordinary key with a list of values; `when` is what keeps the number that
+   * does not apply off the screen.
+   */
+  options: [
+    {
+      kind: 'one',
+      key: 'deck',
+      label: 'Deck',
+      choices: [
+        { value: 'main', label: 'Standard', note: `Adults only · ${size('main')}` },
+        { value: 'family', label: 'Family Edition', note: `Kids can play · ${size('family')}` },
+      ],
+    },
+    {
+      kind: 'one',
+      key: 'until',
+      label: 'Ends',
+      choices: [
+        // Three parallel nouns for what ends it, rather than a preposition and
+        // two nouns — and they fit the row, which "First to" did not.
+        { value: 'points', label: 'Score' },
+        { value: 'rounds', label: 'Rounds' },
+        // Not a promise of a finish line: the deck outlasts the evening, and
+        // somebody calls it. See `Until` in state.ts.
+        { value: 'empty', label: 'Endless' },
+      ],
+    },
+    {
+      kind: 'one',
+      key: 'points',
+      label: 'First to',
+      when: (config) => config.until === 'points',
+      choices: [
+        { value: 3, label: '3' },
+        { value: 5, label: '5' },
+        { value: 7, label: '7' },
+      ],
+    },
+    {
+      kind: 'one',
+      key: 'rounds',
+      label: 'Rounds',
+      when: (config) => config.until === 'rounds',
+      choices: [
+        { value: 5, label: '5' },
+        { value: 10, label: '10' },
+        { value: 15, label: '15' },
+      ],
+    },
+  ],
+
+  summary(config) {
+    const deck = config.deck === 'family' ? 'Family Edition' : 'Standard';
+    const ends =
+      config.until === 'points'
+        ? `first to ${config.points}`
+        : config.until === 'rounds'
+          ? `${config.rounds} rounds`
+          : 'endless';
+    return `${deck} · ${ends}`;
+  },
 
   init(players: SeatInfo[], config, rng) {
     const deck = deckOf(config);
@@ -341,6 +422,7 @@ export const cardsAgainstHumanity: GameDefinition<CahState, CahAction, CahView, 
 
       ending: ending(state),
       lastRound: done(state),
+      credit: { name: deck.name, cc: state.deck === 'main' },
     };
   },
 

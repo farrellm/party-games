@@ -267,7 +267,7 @@ function Scored({ view, dispatch }: { view: CahView; dispatch: (a: CahAction) =>
         </div>
       )}
       <Roster roster={view.roster} />
-      <Credit />
+      <Credit credit={view.credit} />
     </section>
   );
 }
@@ -302,6 +302,16 @@ function Roster({ roster }: { roster: RosterView[] }) {
   );
 }
 
-function Credit() {
-  return <p className="cah-credit">Cards Against Humanity — CC BY-NC-SA 2.0</p>;
+/**
+ * Names the edition actually being played, because attribution is a licence
+ * term and the two decks are not the same work. Only the Main Deck's PDF grants
+ * CC BY-NC-SA 2.0, so only the Main Deck says so.
+ */
+function Credit({ credit }: { credit: CahView['credit'] }) {
+  return (
+    <p className="cah-credit">
+      {credit.name}
+      {credit.cc && ' — CC BY-NC-SA 2.0'}
+    </p>
+  );
 }

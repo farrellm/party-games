@@ -164,7 +164,18 @@ export type CahView = {
 
   roster: RosterView[];
   /** Already resolved to the one that applies, so the surface just reads it. */
-  ending: { until: 'points'; points: number } | { until: 'rounds'; rounds: number } | { until: 'empty' };
+  ending:
+    | { until: 'points'; points: number }
+    | { until: 'rounds'; rounds: number }
+    | { until: 'empty' };
+
+  /**
+   * Attribution is a licence term, so the credit names the edition actually in
+   * play. `cc` is false for the Family Edition: its PDF grants no Creative
+   * Commons licence, and claiming one would be a false statement rather than a
+   * missing one. See NOTICE.md.
+   */
+  credit: { name: string; cc: boolean };
   /**
    * This round settled it, and the next tap ends the game rather than dealing
    * again. Announcing the winner is the shell's job, not this game's — all the
