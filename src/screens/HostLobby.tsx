@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { QrCode } from '../qr/QrCode.tsx';
 import { Scanner } from '../qr/Scanner.tsx';
 import { PasteCode } from './PasteCode.tsx';
+import { Setup } from './Setup.tsx';
 import type { LiveOffer } from '../net/offer-pool.ts';
 import type { RosterEntry } from '../match/protocol.ts';
 import type { AnyGame } from '../game/types.ts';
@@ -14,6 +15,8 @@ type Props = {
   canStart: boolean;
   /** Dev mode has no handshake, so it has no code and no camera (§12). */
   broadcast: boolean;
+  config: Record<string, unknown>;
+  onOption: (key: string, value: unknown) => void;
   onAnswer: (text: string) => void;
   onStart: () => void;
 };
@@ -31,6 +34,8 @@ export function HostLobby({
   notice,
   canStart,
   broadcast,
+  config,
+  onOption,
   onAnswer,
   onStart,
 }: Props) {
@@ -82,6 +87,8 @@ export function HostLobby({
         </ul>
         {roster.length < 2 && <p className="note">Nobody's in yet. Point a phone at the code.</p>}
       </div>
+
+      <Setup game={game} config={config} onOption={onOption} />
 
       <button className="btn primary" disabled={!canStart} onClick={onStart}>
         Start game
